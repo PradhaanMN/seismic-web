@@ -791,13 +791,16 @@ html, body {
 }
 .slider-row input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
 
-/* Grid Section (left of mini-panels) */
-#grid-section {
-  display: flex; flex-direction: column;
-  background: var(--bg-base); overflow: hidden;
+/* Mini Panels — cells in #mini-row */
+.mini-panel {
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--bg-border);
-  min-width: 0;
+  overflow: hidden;
+  padding: 4px 5px;
+  background: var(--bg-panel);
 }
+.mini-panel:last-child { border-right: none; }
 .canvas-toolbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 7px 14px; background: var(--bg-panel);
@@ -805,19 +808,27 @@ html, body {
 }
 .canvas-toolbar-title { font-family: var(--font-ui); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.1em; color: var(--text-secondary); text-transform: uppercase; }
 #canvas-coords-display { font-family: var(--font-mono); font-size: 0.63rem; color: var(--text-dim); }
-#sim-canvas { display: block; cursor: crosshair; max-width: 100%; max-height: 100%; border-radius: 4px; border: 1px solid var(--bg-border); }
 
-/* Mini Panels (right column stacked) */
-#mini-panels {
-  display: flex; flex-direction: column;
-  background: var(--bg-panel); overflow: hidden;
-  grid-column: 2; grid-row: 1;
+/* #mini-row — horizontal strip of 4 charts below the grid canvas */
+#mini-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: 130px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--bg-border);
+  overflow: hidden;
 }
+
+/* Mini panel cell */
 .mini-panel {
-  display: flex; flex-direction: column;
-  border-bottom: 1px solid var(--bg-border);
-  flex: 1; min-height: 0; padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--bg-border);
+  overflow: hidden;
+  padding: 4px 5px;
+  background: var(--bg-panel);
 }
+.mini-panel:last-child { border-right: none; }
 .mini-panel-header {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 3px; flex-shrink: 0;
@@ -840,9 +851,8 @@ html, body {
 .legend-swatch { width: 12px; height: 2px; flex-shrink: 0; border-radius: 1px; }
 .legend-swatch.dashed { background: repeating-linear-gradient(90deg,currentColor 0,currentColor 3px,transparent 3px,transparent 6px); }
 
-/* Classification Section (spans bottom) */
+/* Classification Section — below mini-row */
 #classification-section {
-  grid-column: 1 / -1; grid-row: 2;
   background: var(--bg-panel); border-top: 1px solid var(--bg-border);
   padding: 4px 12px; display: flex; align-items: center; gap: 12px;
   flex-shrink: 0;
@@ -857,21 +867,67 @@ html, body {
 .conf-bar-wrap { width: 80px; height: 3px; background: var(--bg-border); border-radius: 2px; margin-top: 3px; margin-left: auto; }
 .conf-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
 
-/* Sensor stat rows (panel) */
-.sensor-stat { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--bg-border); font-family: var(--font-mono); font-size: 0.65rem; }
-.sensor-stat:last-child { border-bottom: none; }
-.sensor-stat-label { color: var(--text-dim); }
-.sensor-stat-value { color: var(--text-primary); }
-
-/* ── v3.1 additions ──────────────────────────────────── */
-
-/* 8-card metrics: two separate 4-col rows */
+/* ── v3.1/v3.2 additions ──────────────────────────────────── */
 .metrics-grid-2 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   margin-top: 4px;
 }
+/* Sensor stat rows (panel) */
+.sensor-stat { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-bottom: 1px solid var(--bg-border); font-family: var(--font-mono); font-size: 0.62rem; }
+.sensor-stat:last-child { border-bottom: none; }
+.sensor-stat-label { color: var(--text-dim); }
+.sensor-stat-value { color: var(--text-primary); }.sensor-stat-label { color: var(--text-dim); }
+.sensor-stat-value { color: var(--text-primary); }
+
+/* System Internals strip — 4-column formula panel */
+#internals-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  flex-shrink: 0;
+  background: #050a14;
+  border-top: 2px solid #0a2040;
+  border-bottom: 1px solid #0e1e32;
+  overflow: hidden;
+  max-height: 88px;
+}
+.intern-col {
+  padding: 6px 12px;
+  border-right: 1px solid #0e1e32;
+}
+.intern-col:last-child { border-right: none; }
+.intern-title {
+  font-family: var(--font-ui);
+  font-size: 0.52rem;
+  letter-spacing: .12em;
+  color: #00d4ff;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  font-weight: 600;
+}
+.intern-formula {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #e0f0ff;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  text-shadow: 0 0 10px rgba(0,212,255,.5);
+}
+.intern-vars {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.intern-vars span {
+  font-family: var(--font-mono);
+  font-size: 0.61rem;
+  color: #3a6080;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.intern-vars span.live { color: #70a0c0; }
 
 /* Suggestions footer strip */
 #suggestions {

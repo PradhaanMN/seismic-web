@@ -14,7 +14,7 @@
 packages = ["numpy", "matplotlib"]
 </py-config>
 <style>
-/* ─── v3.2 inline additions ─────────────────────────────── */
+/* ─── v3.2 neon overrides ──────────────────────────────── */
 :root{
   --neon-green:  #00ffbb;
   --neon-orange: #ff5500;
@@ -23,52 +23,12 @@ packages = ["numpy", "matplotlib"]
   --neon-purple: #c060ff;
   --neon-red:    #ff1a44;
 }
-/* Section labels */
 .section-label{
   font-family:'Orbitron',monospace;font-size:0.55rem;font-weight:600;
   letter-spacing:.14em;color:#506070;text-transform:uppercase;margin-bottom:5px;
 }
-/* Internals strip — compact */
-#internals-strip{
-  display:grid;grid-template-columns:repeat(4,1fr);
-  gap:0;background:#06090f;border-top:1px solid #1a2540;
-  border-bottom:1px solid #1a2540;flex-shrink:0;
-  max-height:64px;overflow:hidden;
-}
-.intern-col{
-  padding:5px 10px;border-right:1px solid #1a2540;
-}
-.intern-col:last-child{border-right:none;}
-.intern-title{
-  font-family:'Orbitron',monospace;font-size:0.50rem;
-  letter-spacing:.1em;color:#4a7090;text-transform:uppercase;
-  margin-bottom:2px;
-}
-.intern-formula{
-  font-family:'Share Tech Mono',monospace;font-size:0.68rem;
-  color:#00d4ff;margin-bottom:3px;white-space:nowrap;
-  text-shadow:0 0 8px rgba(0,212,255,.6);
-}
-.intern-vars{display:flex;flex-direction:column;gap:0;}
-.intern-vars span{
-  font-family:'Share Tech Mono',monospace;font-size:0.58rem;
-  color:#5a7090;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.intern-vars span.live{color:#80b0d0;}
-/* 8-card metrics grid — 4 columns */
+/* 8-card metrics grid — force 4 columns */
 .metrics-grid{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:4px!important;}
-.metrics-grid-2{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px;}
-/* Improvement suggestions — compact */
-#suggestions{
-  padding:3px 12px 4px;background:#04070d;border-top:1px solid #0e1e32;
-  font-family:'Share Tech Mono',monospace;font-size:0.56rem;color:#3a5878;
-  display:flex;gap:3px 14px;flex-wrap:wrap;flex-shrink:0;
-}
-#suggestions span{color:#304860;}
-#suggestions b{color:#4a7890;}
-/* Canvas borders — neon glow */
-#sim-canvas{border:1px solid rgba(0,212,255,.22);box-shadow:0 0 12px rgba(0,212,255,.08);}
-.mini-canvas{border:1px solid rgba(0,212,255,.14);}
 </style>
 </head>
 <body>
@@ -227,93 +187,91 @@ packages = ["numpy", "matplotlib"]
       <!-- Main simulation grid -->
       <div id="grid-section">
         <div class="canvas-toolbar">
-          <span class="canvas-toolbar-title">⬡ GEOPHONE FIELD — Live Seismic Array  |  Δt labels = TDOA relative to nearest sensor</span>
+          <span class="canvas-toolbar-title">⬡ GEOPHONE FIELD — Live Seismic Array  |  Δt = TDOA relative to ref sensor</span>
           <span id="canvas-coords-display">Hover for coordinates</span>
         </div>
-        <canvas id="sim-canvas" width="600" height="420"></canvas>
+        <div id="canvas-wrap-inner">
+          <canvas id="sim-canvas" width="600" height="420"></canvas>
+        </div>
       </div>
 
-      <!-- 4 Mini panels -->
-      <div id="mini-panels">
+      <!-- 4 Mini charts — horizontal strip -->
+      <div id="mini-row">
 
-        <!-- Waveform -->
         <div class="mini-panel">
           <div class="mini-panel-header">
-            <span class="mini-panel-title">⌇ Waveform  s(t)</span>
+            <span class="mini-panel-title">⌇ Waveform s(t)</span>
             <span class="mini-panel-meta" id="wf-meta">amp: —</span>
           </div>
           <canvas id="wf-canvas" class="mini-canvas"></canvas>
         </div>
 
-        <!-- FFT Spectrum -->
         <div class="mini-panel">
           <div class="mini-panel-header">
-            <span class="mini-panel-title">≋ FFT Spectrum  |X(f)|</span>
+            <span class="mini-panel-title">≋ FFT |X(f)|</span>
             <span class="mini-panel-meta" id="fft-meta">fdom: —</span>
           </div>
           <canvas id="fft-canvas" class="mini-canvas"></canvas>
         </div>
 
-        <!-- Position vs Time -->
         <div class="mini-panel">
           <div class="mini-panel-header">
-            <span class="mini-panel-title">◈ Position vs Time  x(t), y(t)</span>
+            <span class="mini-panel-title">◈ Position x(t),y(t)</span>
             <span class="mini-panel-meta" id="pos-meta">t = 0 s</span>
           </div>
           <canvas id="pos-canvas" class="mini-canvas"></canvas>
         </div>
 
-        <!-- TDOA Arrival Times -->
         <div class="mini-panel">
           <div class="mini-panel-header">
-            <span class="mini-panel-title">⏱ TDOA Arrival Times  Δt</span>
-            <span class="mini-panel-meta" id="tdoa-meta">8 nearest sensors</span>
+            <span class="mini-panel-title">⏱ TDOA Δt</span>
+            <span class="mini-panel-meta" id="tdoa-meta">8 nearest</span>
           </div>
           <canvas id="tdoa-canvas" class="mini-canvas"></canvas>
         </div>
 
-      </div><!-- /#mini-panels -->
+      </div><!-- /#mini-row -->
 
     </div><!-- /#canvas-area -->
 
   </div><!-- /#main-layout -->
 
-  <!-- SYSTEM INTERNALS STRIP ──────────────────────────── -->
+  <!-- SYSTEM INTERNALS — full-width panel with formulas -->
   <div id="internals-strip">
     <div class="intern-col">
-      <div class="intern-title">Signal Model</div>
-      <div class="intern-formula">s(t) = A·e<sup>&#8722;&#945;d</sup>·f<sub>type</sub>(t) + n(t)</div>
+      <div class="intern-title">① Signal Model</div>
+      <div class="intern-formula">s(t) = A&middot;e<sup>&minus;&alpha;d</sup>&middot;f<sub>type</sub>(t) + &eta;(t)</div>
       <div class="intern-vars">
-        <span>&#945; = 0.12 m&#8315;&#185; (soil attenuation)</span>
-        <span class="live" id="iv-decay">d = — m | decay A = —</span>
-        <span class="live" id="iv-energy">Signal energy = —</span>
+        <span>&alpha; = 0.12 m<sup>&minus;1</sup> &nbsp;(soil attenuation)</span>
+        <span class="live" id="iv-decay">d = &mdash; m &nbsp;|&nbsp; decay A = &mdash;</span>
+        <span class="live" id="iv-energy">Signal energy E = &mdash;</span>
       </div>
     </div>
     <div class="intern-col">
-      <div class="intern-title">TDOA Formula</div>
-      <div class="intern-formula">&#916;t<sub>ij</sub> = (d<sub>i</sub> &#8722; d<sub>j</sub>) / v<sub>s</sub></div>
+      <div class="intern-title">② TDOA Measurement</div>
+      <div class="intern-formula">&Delta;t<sub>ij</sub> = (d<sub>i</sub> &minus; d<sub>j</sub>) / v<sub>s</sub></div>
       <div class="intern-vars">
-        <span class="live" id="iv-wave">v&#8209;s = — m/s | &#955; = v/f = — m</span>
-        <span class="live" id="iv-ref">ref sensor: S(—,—) | nearest</span>
-        <span class="live" id="iv-tmax">max |&#916;t| = — ms</span>
+        <span class="live" id="iv-wave">v&nbsp;= &mdash; m/s &nbsp;|&nbsp; &lambda; = v/f = &mdash; m</span>
+        <span class="live" id="iv-ref">ref sensor: S(&mdash;,&mdash;) | nearest</span>
+        <span class="live" id="iv-tmax">max |&Delta;t| = &mdash; ms</span>
       </div>
     </div>
     <div class="intern-col">
-      <div class="intern-title">Grid-Search Localisation</div>
-      <div class="intern-formula">min<sub>(x,y)</sub> &#931;(&#916;t<sub>ij</sub> &#8722; &#916;t&#770;<sub>ij</sub>)&#178;</div>
+      <div class="intern-title">③ Grid-Search Localisation</div>
+      <div class="intern-formula">min<sub>(x,y)</sub> &Sigma;(&Delta;t<sub>ij</sub> &minus; &Delta;t&#x302;<sub>ij</sub>)&sup2;</div>
       <div class="intern-vars">
-        <span class="live" id="iv-grid">search space: 18&#215;12 = 216 pts</span>
-        <span class="live" id="iv-est">est: (—,—) &#8594; (— m, — m)</span>
-        <span class="live" id="iv-err">position error: — m</span>
+        <span class="live" id="iv-grid">search: 18&times;12 = 216 pts</span>
+        <span class="live" id="iv-est">est: (&mdash;,&mdash;) &rarr; (&mdash; m, &mdash; m)</span>
+        <span class="live" id="iv-err">position error: &mdash; m</span>
       </div>
     </div>
     <div class="intern-col">
-      <div class="intern-title">Signal Quality</div>
-      <div class="intern-formula">SNR = 10 log&#8321;&#8320;(P<sub>sig</sub>/&#963;&#178;)</div>
+      <div class="intern-title">④ Signal Quality</div>
+      <div class="intern-formula">SNR = 10&thinsp;log<sub>10</sub>(P<sub>sig</sub>/&sigma;&sup2;)</div>
       <div class="intern-vars">
-        <span class="live" id="iv-snr">SNR = — dB</span>
-        <span class="live" id="iv-freq">f&#8209;dom = — Hz | T = 1/f = — ms</span>
-        <span class="live" id="iv-fs">f&#8209;s = — Hz | N = — samples</span>
+        <span class="live" id="iv-snr">SNR = &mdash; dB</span>
+        <span class="live" id="iv-freq">f<sub>dom</sub> = &mdash; Hz &nbsp;|&nbsp; T = 1/f = &mdash; ms</span>
+        <span class="live" id="iv-fs">f<sub>s</sub> = &mdash; Hz &nbsp;|&nbsp; N = &mdash; samples</span>
       </div>
     </div>
   </div>
