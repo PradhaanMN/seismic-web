@@ -4,30 +4,71 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seismic Web — Perimeter Intrusion Detection</title>
-
-<!-- ── Fonts ─────────────────────────────────────────────── -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-
-<!-- ── Styles ────────────────────────────────────────────── -->
 <link rel="stylesheet" href="styles.css">
-
-<!-- ── PyScript 2024.11.1 ────────────────────────────────── -->
 <link rel="stylesheet" href="https://pyscript.net/releases/2024.11.1/core.css">
 <script type="module" src="https://pyscript.net/releases/2024.11.1/core.js"></script>
-
-<!-- ── PyScript package config ───────────────────────────── -->
 <py-config type="toml">
 packages = ["numpy", "matplotlib"]
 </py-config>
+<style>
+/* ─── v3.1 inline additions ─────────────────────────────── */
+:root{
+  --neon-green:  #00ffaa;
+  --neon-orange: #ff5500;
+  --neon-yellow: #ffe600;
+  --neon-cyan:   #00e5ff;
+  --neon-purple: #c060ff;
+  --neon-red:    #ff2255;
+}
+/* Internals strip */
+#internals-strip{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:0;background:#06090f;border-top:1px solid #1a2540;
+  border-bottom:1px solid #1a2540;flex-shrink:0;
+}
+.intern-col{
+  padding:7px 12px;border-right:1px solid #1a2540;
+}
+.intern-col:last-child{border-right:none;}
+.intern-title{
+  font-family:'Orbitron',monospace;font-size:0.52rem;
+  letter-spacing:.1em;color:#4a6080;text-transform:uppercase;
+  margin-bottom:3px;
+}
+.intern-formula{
+  font-family:'Share Tech Mono',monospace;font-size:0.72rem;
+  color:var(--neon-cyan);margin-bottom:4px;white-space:nowrap;
+  text-shadow:0 0 8px rgba(0,229,255,.5);
+}
+.intern-vars{display:flex;flex-direction:column;gap:1px;}
+.intern-vars span{
+  font-family:'Share Tech Mono',monospace;font-size:0.62rem;
+  color:#5a7090;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.intern-vars span.live{color:#9ab0c8;}
+/* 8-card metrics grid */
+.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+/* expand to 8 */
+.metrics-grid-2{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:5px;}
+/* Improvement suggestions */
+#suggestions{
+  padding:8px 14px;background:#05080e;border-top:1px solid #1a2540;
+  font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#3a5070;
+  display:flex;gap:18px;flex-wrap:wrap;flex-shrink:0;
+}
+#suggestions span{color:#2a4060;}
+#suggestions b{color:#4a7090;}
+/* Override accent to neon values */
+#sim-canvas{border:1px solid rgba(0,229,255,.18);}
+.mini-canvas{border:1px solid rgba(0,229,255,.12);}
+</style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════════════════
-     LOADING OVERLAY
-     Shown while Pyodide / NumPy download (~8 MB first load)
-════════════════════════════════════════════════════════════ -->
+<!-- LOADING OVERLAY ──────────────────────────────────── -->
 <div id="loading-overlay">
   <div class="loading-content">
     <div class="loading-logo">⬡</div>
@@ -35,21 +76,19 @@ packages = ["numpy", "matplotlib"]
     <div class="loading-subtitle">Bio-Inspired Perimeter Intrusion Detection</div>
     <div class="loading-bar-wrap"><div class="loading-bar-fill" id="loading-bar"></div></div>
     <div class="loading-status" id="loading-status">Initialising Pyodide runtime…</div>
-    <div class="loading-detail" id="loading-detail">Downloading NumPy + science packages (~8 MB on first load)</div>
+    <div class="loading-detail" id="loading-detail">Downloading NumPy + science packages (~8 MB first load)</div>
   </div>
 </div>
 
-<!-- ════════════════════════════════════════════════════════
-     MAIN APPLICATION CONTAINER  (hidden until Python ready)
-════════════════════════════════════════════════════════════ -->
+<!-- APP CONTAINER ─────────────────────────────────────── -->
 <div id="app-container" style="display:none">
 
-  <!-- ── HEADER ──────────────────────────────────────────── -->
+  <!-- HEADER ──────────────────────────────────────────── -->
   <header id="app-header">
     <div class="header-left">
       <span class="header-logo">⬡</span>
       <span class="header-title">SEISMIC<span class="header-accent">WEB</span></span>
-      <span class="header-sub">Bio-Inspired Perimeter IDS v3.0</span>
+      <span class="header-sub">Bio-Inspired Perimeter IDS v3.1</span>
     </div>
     <div class="header-center">
       <div id="status-badge">
@@ -63,15 +102,13 @@ packages = ["numpy", "matplotlib"]
     </div>
   </header>
 
-  <!-- ── MAIN LAYOUT ─────────────────────────────────────── -->
+  <!-- MAIN LAYOUT ─────────────────────────────────────── -->
   <div id="main-layout">
 
-    <!-- ════════════════════════════════════════════════════
-         LEFT PANEL — Controls
-    ════════════════════════════════════════════════════════ -->
+    <!-- LEFT PANEL ──────────────────────────────────────── -->
     <div id="control-panel">
 
-      <!-- TRIGGER BUTTONS ──────────────────────────────── -->
+      <!-- TRIGGER BUTTONS -->
       <div class="panel-section">
         <div class="section-label">INTRUDER TYPE</div>
         <div class="trigger-btns">
@@ -94,122 +131,117 @@ packages = ["numpy", "matplotlib"]
         </div>
       </div>
 
-      <!-- PARAMETER SLIDERS ────────────────────────────── -->
+      <!-- SIGNAL PARAMETERS -->
       <div class="panel-section">
         <div class="section-label">SIGNAL PARAMETERS</div>
-
         <div class="slider-row">
-          <span class="slider-label">Noise Level</span>
+          <span class="slider-label">Noise σ</span>
           <input id="s-noise" type="range" min="0.01" max="0.50" step="0.01" value="0.08"
                  oninput="document.getElementById('v-noise').textContent=parseFloat(this.value).toFixed(2)">
           <span class="slider-value" id="v-noise">0.08</span>
         </div>
         <div class="slider-row">
-          <span class="slider-label">Sample Rate</span>
+          <span class="slider-label">fₛ sample rate</span>
           <input id="s-srate" type="range" min="50" max="500" step="10" value="200"
                  oninput="document.getElementById('v-srate').textContent=this.value+' Hz'">
           <span class="slider-value" id="v-srate">200 Hz</span>
         </div>
         <div class="slider-row">
-          <span class="slider-label">Wave Speed</span>
+          <span class="slider-label">v wave speed</span>
           <input id="s-wspeed" type="range" min="10" max="200" step="5" value="50"
                  oninput="document.getElementById('v-wspeed').textContent=this.value+' m/s'">
           <span class="slider-value" id="v-wspeed">50 m/s</span>
         </div>
         <div class="slider-row">
-          <span class="slider-label">Target Speed</span>
+          <span class="slider-label">Target speed</span>
           <input id="s-tspeed" type="range" min="0.5" max="8.0" step="0.1" value="2.0"
                  oninput="document.getElementById('v-tspeed').textContent=parseFloat(this.value).toFixed(1)+' c/s'">
           <span class="slider-value" id="v-tspeed">2.0 c/s</span>
         </div>
       </div>
 
-      <!-- DETECTION METRICS ────────────────────────────── -->
+      <!-- DETECTION METRICS — 8 cards -->
       <div class="panel-section">
         <div class="section-label">DETECTION METRICS</div>
         <div class="metrics-grid">
-          <div class="metric-card">
-            <div class="metric-label">FREQ</div>
-            <div class="metric-value" id="metric-freq">—</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">CONF</div>
-            <div class="metric-value" id="metric-conf">—</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">EST-X</div>
-            <div class="metric-value" id="metric-x">—</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">EST-Y</div>
-            <div class="metric-value" id="metric-y">—</div>
-          </div>
+          <div class="metric-card"><div class="metric-label">f dom</div><div class="metric-value" id="metric-freq">—</div></div>
+          <div class="metric-card"><div class="metric-label">CONF</div><div class="metric-value" id="metric-conf">—</div></div>
+          <div class="metric-card"><div class="metric-label">EST-X</div><div class="metric-value" id="metric-x">—</div></div>
+          <div class="metric-card"><div class="metric-label">EST-Y</div><div class="metric-value" id="metric-y">—</div></div>
+        </div>
+        <div class="metrics-grid-2">
+          <div class="metric-card"><div class="metric-label">SNR</div><div class="metric-value" id="metric-snr">—</div></div>
+          <div class="metric-card"><div class="metric-label">ERR</div><div class="metric-value" id="metric-err">—</div></div>
+          <div class="metric-card"><div class="metric-label">λ</div><div class="metric-value" id="metric-lambda">—</div></div>
+          <div class="metric-card"><div class="metric-label">T</div><div class="metric-value" id="metric-period">—</div></div>
         </div>
       </div>
 
-      <!-- SENSOR LEGEND ────────────────────────────────── -->
+      <!-- LEGEND -->
       <div class="panel-section">
         <div class="section-label">LEGEND</div>
         <div class="legend">
           <div class="legend-item"><span class="legend-swatch" style="background:#1e4a7a"></span>Idle sensor</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#00ff88"></span>Human (active)</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#ff6b35"></span>Vehicle (active)</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#ffd700"></span>Animal (active)</div>
-          <div class="legend-item"><span class="legend-swatch" style="border:2px dashed #aaa;background:transparent"></span>Estimated pos.</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#ffffff"></span>True target pos.</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#00ffaa"></span>Human (active)</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#ff5500"></span>Vehicle (active)</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#ffe600"></span>Animal (active)</div>
+          <div class="legend-item"><span class="legend-swatch" style="border:2px dashed #00e5ff;background:transparent"></span>TDOA estimated</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#ffffff"></span>True target</div>
         </div>
       </div>
 
-      <!-- SENSOR STATS ─────────────────────────────────── -->
+      <!-- ARRAY CONFIG -->
       <div class="panel-section">
         <div class="section-label">ARRAY CONFIGURATION</div>
         <div class="sensor-stat"><span>Sensors</span><span>64</span></div>
-        <div class="sensor-stat"><span>Grid</span><span>20×14</span></div>
+        <div class="sensor-stat"><span>Grid</span><span>20×14 cells</span></div>
         <div class="sensor-stat"><span>Cell size</span><span>5 m</span></div>
         <div class="sensor-stat"><span>Field area</span><span>100×70 m</span></div>
-        <div class="sensor-stat"><span>Analysis period</span><span>2 s</span></div>
+        <div class="sensor-stat"><span>Analysis Δt</span><span>2 s</span></div>
+        <div class="sensor-stat"><span>TDOA model</span><span>Grid search</span></div>
+        <div class="sensor-stat"><span>FFT window</span><span>Hanning</span></div>
+        <div class="sensor-stat"><span>Signal model</span><span>s(t)=Ae⁻ᵅᵈf(t)+n</span></div>
       </div>
 
-      <!-- EVENT LOG ────────────────────────────────────── -->
+      <!-- EVENT LOG -->
       <div class="panel-section" style="flex:1;display:flex;flex-direction:column;min-height:0">
         <div class="section-label">EVENT LOG</div>
         <div id="event-log" class="event-log">
           <span class="log-entry log-dim">▶ System initialising…</span><br/>
         </div>
       </div>
+
     </div><!-- /#control-panel -->
 
-    <!-- ════════════════════════════════════════════════════
-         CANVAS AREA — Simulation Grid + Mini Panels
-    ════════════════════════════════════════════════════════ -->
+    <!-- CANVAS AREA ─────────────────────────────────────── -->
     <div id="canvas-area">
 
       <!-- Main simulation grid -->
       <div id="grid-section">
         <div class="canvas-toolbar">
-          <span class="canvas-toolbar-title">⬡ GEOPHONE FIELD — Live Seismic Array</span>
+          <span class="canvas-toolbar-title">⬡ GEOPHONE FIELD — Live Seismic Array  |  Δt labels = TDOA relative to nearest sensor</span>
           <span id="canvas-coords-display">Hover for coordinates</span>
         </div>
         <canvas id="sim-canvas" width="600" height="420"></canvas>
       </div>
 
-      <!-- Mini panels column -->
+      <!-- 4 Mini panels -->
       <div id="mini-panels">
 
         <!-- Waveform -->
         <div class="mini-panel">
           <div class="mini-panel-header">
-            <span class="mini-panel-title">⌇ Waveform</span>
-            <span class="mini-panel-meta" id="wf-meta">awaiting signal…</span>
+            <span class="mini-panel-title">⌇ Waveform  s(t)</span>
+            <span class="mini-panel-meta" id="wf-meta">amp: —</span>
           </div>
-          <canvas id="wf-canvas"  class="mini-canvas"></canvas>
+          <canvas id="wf-canvas" class="mini-canvas"></canvas>
         </div>
 
         <!-- FFT Spectrum -->
         <div class="mini-panel">
           <div class="mini-panel-header">
-            <span class="mini-panel-title">≋ FFT Spectrum</span>
-            <span class="mini-panel-meta" id="fft-meta">awaiting analysis…</span>
+            <span class="mini-panel-title">≋ FFT Spectrum  |X(f)|</span>
+            <span class="mini-panel-meta" id="fft-meta">fdom: —</span>
           </div>
           <canvas id="fft-canvas" class="mini-canvas"></canvas>
         </div>
@@ -217,10 +249,19 @@ packages = ["numpy", "matplotlib"]
         <!-- Position vs Time -->
         <div class="mini-panel">
           <div class="mini-panel-header">
-            <span class="mini-panel-title">◈ Position vs Time</span>
-            <span class="mini-panel-meta" id="pos-meta">collecting data…</span>
+            <span class="mini-panel-title">◈ Position vs Time  x(t), y(t)</span>
+            <span class="mini-panel-meta" id="pos-meta">t = 0 s</span>
           </div>
           <canvas id="pos-canvas" class="mini-canvas"></canvas>
+        </div>
+
+        <!-- TDOA Arrival Times -->
+        <div class="mini-panel">
+          <div class="mini-panel-header">
+            <span class="mini-panel-title">⏱ TDOA Arrival Times  Δt</span>
+            <span class="mini-panel-meta" id="tdoa-meta">8 nearest sensors</span>
+          </div>
+          <canvas id="tdoa-canvas" class="mini-canvas"></canvas>
         </div>
 
       </div><!-- /#mini-panels -->
@@ -229,7 +270,47 @@ packages = ["numpy", "matplotlib"]
 
   </div><!-- /#main-layout -->
 
-  <!-- CLASSIFICATION BANNER ──────────────────────────────── -->
+  <!-- SYSTEM INTERNALS STRIP ──────────────────────────── -->
+  <div id="internals-strip">
+    <div class="intern-col">
+      <div class="intern-title">Signal Model</div>
+      <div class="intern-formula">s(t) = A·e<sup>&#8722;&#945;d</sup>·f<sub>type</sub>(t) + n(t)</div>
+      <div class="intern-vars">
+        <span>&#945; = 0.12 m&#8315;&#185; (soil attenuation)</span>
+        <span class="live" id="iv-decay">d = — m | decay A = —</span>
+        <span class="live" id="iv-energy">Signal energy = —</span>
+      </div>
+    </div>
+    <div class="intern-col">
+      <div class="intern-title">TDOA Formula</div>
+      <div class="intern-formula">&#916;t<sub>ij</sub> = (d<sub>i</sub> &#8722; d<sub>j</sub>) / v<sub>s</sub></div>
+      <div class="intern-vars">
+        <span class="live" id="iv-wave">v&#8209;s = — m/s | &#955; = v/f = — m</span>
+        <span class="live" id="iv-ref">ref sensor: S(—,—) | nearest</span>
+        <span class="live" id="iv-tmax">max |&#916;t| = — ms</span>
+      </div>
+    </div>
+    <div class="intern-col">
+      <div class="intern-title">Grid-Search Localisation</div>
+      <div class="intern-formula">min<sub>(x,y)</sub> &#931;(&#916;t<sub>ij</sub> &#8722; &#916;t&#770;<sub>ij</sub>)&#178;</div>
+      <div class="intern-vars">
+        <span class="live" id="iv-grid">search space: 18&#215;12 = 216 pts</span>
+        <span class="live" id="iv-est">est: (—,—) &#8594; (— m, — m)</span>
+        <span class="live" id="iv-err">position error: — m</span>
+      </div>
+    </div>
+    <div class="intern-col">
+      <div class="intern-title">Signal Quality</div>
+      <div class="intern-formula">SNR = 10 log&#8321;&#8320;(P<sub>sig</sub>/&#963;&#178;)</div>
+      <div class="intern-vars">
+        <span class="live" id="iv-snr">SNR = — dB</span>
+        <span class="live" id="iv-freq">f&#8209;dom = — Hz | T = 1/f = — ms</span>
+        <span class="live" id="iv-fs">f&#8209;s = — Hz | N = — samples</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLASSIFICATION BANNER ───────────────────────────── -->
   <div id="classification-section" class="hidden">
     <span class="class-icon" id="cls-icon">?</span>
     <span class="class-label" id="cls-label">—</span>
@@ -241,41 +322,60 @@ packages = ["numpy", "matplotlib"]
     </div>
   </div>
 
+  <!-- IMPROVEMENT SUGGESTIONS ─────────────────────────── -->
+  <div id="suggestions">
+    <span>💡 <b>Suggested improvements:</b></span>
+    <span>① Kalman filter on TDOA estimates to smooth track</span>
+    <span>② ML-based classifier (SVM/CNN on raw waveform) replacing rule-based</span>
+    <span>③ Beamforming (delay-and-sum) for higher directional resolution</span>
+    <span>④ Multi-target tracking with data association (Hungarian algorithm)</span>
+    <span>⑤ Adaptive noise floor estimation per sensor</span>
+    <span>⑥ Real sensor hardware integration via WebSocket / MQTT</span>
+    <span>⑦ 3D seismic wave simulation with Rayleigh / Love wave separation</span>
+  </div>
+
 </div><!-- /#app-container -->
 
 
-<!-- ═══════════════════════════════════════════════════════════
-     JAVASCRIPT v3.0 — Canvas Rendering & Animation Engine
-     ─────────────────────────────────────────────────────────
-     Responsibilities:
-       • Moving target (random walk, speed-controlled)
-       • Grid canvas: 64 sensors, target trail, estimated marker
-       • Waveform canvas: real-time scrolling signal (JS-generated)
-       • FFT canvas: spectrum from Python analysis (every 2 s)
-       • Position vs Time canvas: true vs estimated X/Y tracks
-       • Calling window.pyAnalyse() bridge every 2 s
-════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════
+     JAVASCRIPT v3.1 — Full Engineering Dashboard
+     ─────────────────────────────────────────────────────
+     New in v3.1:
+       • Labeled axes (amplitude, time, frequency, position)
+       • TDOA bar chart (4th mini-canvas)
+       • TDOA labels drawn on grid near active sensors
+       • System internals strip with live computed values
+       • 8 engineering metrics (SNR, λ, T, error)
+       • Brighter neon colour palette
+═══════════════════════════════════════════════════════ -->
 <script>
 "use strict";
 
-// ══════════════════════════════════════════════════════════
-// SECTION A — GRID & CANVAS CONSTANTS
-// ══════════════════════════════════════════════════════════
+// ── Grid constants ────────────────────────────────────────
 const COLS = 20;
 const ROWS = 14;
-const CELL = 30;
+const CELL = 30;       // px / cell → canvas 600×420
+const CELL_M = 5;      // metres per grid cell
 
-// Canvas references
+// Neon palette (matches CSS variables)
+const NEON = {
+  human:   '#00ffaa',
+  vehicle: '#ff5500',
+  animal:  '#ffe600',
+  cyan:    '#00e5ff',
+  purple:  '#c060ff',
+  white:   '#ffffff',
+  dimGrid: 'rgba(0,229,255,0.08)',
+};
+
 const gridCanvas = document.getElementById('sim-canvas');
 const gCtx       = gridCanvas.getContext('2d');
 
-// ══════════════════════════════════════════════════════════
-// SECTION B — SENSOR GEOMETRY
-// ══════════════════════════════════════════════════════════
+// ── Sensor geometry ───────────────────────────────────────
 function buildSensors() {
   const s = [];
-  for (let x = 0; x < COLS; x++) s.push({ x, y: 0 });
-  for (let x = 0; x < COLS; x++) s.push({ x, y: ROWS - 1 });
+  for (let x = 0; x < COLS; x++)      s.push({ x, y: 0 });
+  for (let x = 0; x < COLS; x++)      s.push({ x, y: ROWS - 1 });
   for (let y = 1; y < ROWS - 1; y++) s.push({ x: 0, y });
   for (let y = 1; y < ROWS - 1; y++) s.push({ x: COLS - 1, y });
   return s;
@@ -286,34 +386,33 @@ function toPixel(gx, gy) {
   return { cx: gx * CELL + CELL / 2, cy: gy * CELL + CELL / 2 };
 }
 
-// ══════════════════════════════════════════════════════════
-// SECTION C — SIMULATION STATE
-// ══════════════════════════════════════════════════════════
+// ── Simulation state ──────────────────────────────────────
 const sim = {
   running:    false,
   trigger:    null,
   elapsed:    0,
   lastRAF:    0,
-  target: { gx: 10, gy: 7, vx: 1, vy: 0.5, perturbTimer: 0 },
-  targetTrail:   [],
-  estimated:     { gx: -1, gy: -1 },
-  posHistory:    [],
-  analysisTimer: 0,
+  target:     { gx: 10, gy: 7, vx: 1, vy: 0.5, perturbTimer: 0 },
+  targetTrail:[],
+  estimated:  { gx: -1, gy: -1 },
+  posHistory: [],
+  analysisTimer:   0,
   ANALYSIS_PERIOD: 2.0,
-  fftData:       null,
-  wfBuf:         new Float32Array(300).fill(0),
-  wfTime:        0,
-  animalBurst:   0,
-  lastResult:    null,
+  fftData:    null,
+  tdoaData:   null,
+  snrDb:      0,
+  signalEnergy: 0,
+  wfBuf:      new Float32Array(300).fill(0),
+  wfTime:     0,
+  animalBurst:0,
+  lastResult: null,
 };
 
-const COLORS = { human: '#00ff88', vehicle: '#ff6b35', animal: '#ffd700' };
+function el(id) { return document.getElementById(id); }
 
-// ══════════════════════════════════════════════════════════
-// SECTION D — TARGET MOVEMENT
-// ══════════════════════════════════════════════════════════
+// ── Target movement ───────────────────────────────────────
 function updateTarget(dt) {
-  const speed  = parseFloat(document.getElementById('s-tspeed').value);
+  const speed = parseFloat(el('s-tspeed').value);
   const t = sim.target;
   const mag = Math.sqrt(t.vx * t.vx + t.vy * t.vy) || 1;
   t.gx += (t.vx / mag) * speed * dt;
@@ -326,8 +425,7 @@ function updateTarget(dt) {
   if (t.perturbTimer > 1.5 + Math.random() * 2) {
     t.perturbTimer = 0;
     const angle = Math.atan2(t.vy, t.vx) + (Math.random() - 0.5) * Math.PI * 0.7;
-    t.vx = Math.cos(angle);
-    t.vy = Math.sin(angle);
+    t.vx = Math.cos(angle); t.vy = Math.sin(angle);
   }
   const last = sim.targetTrail[sim.targetTrail.length - 1];
   if (!last || (t.gx - last.gx) ** 2 + (t.gy - last.gy) ** 2 > 0.04) {
@@ -336,16 +434,13 @@ function updateTarget(dt) {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// SECTION E — WAVEFORM BUFFER (JS real-time generation)
-// ══════════════════════════════════════════════════════════
+// ── Real-time waveform buffer (JS, 60 fps) ────────────────
 function updateWaveformBuffer(dt) {
   if (!sim.running) return;
-  const fs    = parseFloat(document.getElementById('s-srate').value);
-  const noise = parseFloat(document.getElementById('s-noise').value);
+  const fs    = parseFloat(el('s-srate').value);
+  const noise = parseFloat(el('s-noise').value);
   const nearDist = Math.min(...SENSORS.map(s =>
-    Math.sqrt((s.x - sim.target.gx) ** 2 + (s.y - sim.target.gy) ** 2)
-  ));
+    Math.sqrt((s.x - sim.target.gx) ** 2 + (s.y - sim.target.gy) ** 2)));
   const decay = Math.exp(-nearDist * 0.12);
   const count = Math.max(1, Math.round(fs * dt));
   for (let i = 0; i < count; i++) {
@@ -360,7 +455,9 @@ function updateWaveformBuffer(dt) {
       }
       case 'vehicle': {
         const fm = 1 + 0.02 * Math.sin(6.283 * 0.3 * tv);
-        s = decay * (1.4 * Math.sin(6.283 * 28 * fm * tv) + 0.6 * Math.sin(6.283 * 56 * tv) + 0.3 * Math.sin(6.283 * 84 * tv));
+        s = decay * (1.4 * Math.sin(6.283 * 28 * fm * tv) +
+                     0.6 * Math.sin(6.283 * 56 * tv) +
+                     0.3 * Math.sin(6.283 * 84 * tv));
         break;
       }
       case 'animal': {
@@ -376,76 +473,117 @@ function updateWaveformBuffer(dt) {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// SECTION F — PYTHON ANALYSIS BRIDGE
-// ══════════════════════════════════════════════════════════
+// ── Python analysis bridge (every 2 s) ────────────────────
 async function runPythonAnalysis() {
   if (!window.pyAnalyse || !sim.running) return;
-  const noise  = parseFloat(document.getElementById('s-noise').value);
-  const wSpd   = parseFloat(document.getElementById('s-wspeed').value);
-  const sRate  = parseFloat(document.getElementById('s-srate').value);
+  const noise  = parseFloat(el('s-noise').value);
+  const wSpd   = parseFloat(el('s-wspeed').value);
+  const sRate  = parseFloat(el('s-srate').value);
   const srcGx  = Math.round(Math.max(1, Math.min(COLS - 2, sim.target.gx)));
   const srcGy  = Math.round(Math.max(1, Math.min(ROWS - 2, sim.target.gy)));
   try {
     const raw = window.pyAnalyse(sim.trigger, srcGx, srcGy, noise, wSpd, sRate);
     const r   = JSON.parse(String(raw));
-    sim.estimated.gx = r.est_gx;
-    sim.estimated.gy = r.est_gy;
-    sim.fftData = { freqs: r.fft_freqs, mag: r.fft_mag, passLo: r.pass_lo, passHi: r.pass_hi, domFreq: r.dominant_freq };
+    sim.estimated.gx   = r.est_gx;
+    sim.estimated.gy   = r.est_gy;
+    sim.fftData  = { freqs: r.fft_freqs, mag: r.fft_mag, passLo: r.pass_lo, passHi: r.pass_hi, domFreq: r.dominant_freq };
+    sim.tdoaData = r.sensor_tdoas || null;
+    sim.snrDb    = r.snr_db   || 0;
+    sim.signalEnergy = r.signal_energy || 0;
     sim.posHistory.push({ t: sim.elapsed, tGx: sim.target.gx, tGy: sim.target.gy, eGx: r.est_gx, eGy: r.est_gy });
     if (sim.posHistory.length > 120) sim.posHistory.shift();
     sim.lastResult = r;
     updateClassificationBanner(r);
-    updateMetricCards(r);
-    const errM = (Math.sqrt((r.est_gx - srcGx) ** 2 + (r.est_gy - srcGy) ** 2) * 5).toFixed(1);
-    appendLog(`⚠ ${r.label} | est:(${r.est_gx},${r.est_gy}) | err≈${errM}m | ${(r.confidence * 100).toFixed(0)}%`, 'log-alert');
-    document.getElementById('fft-meta').textContent = `dom: ${r.dominant_freq.toFixed(1)} Hz`;
-    document.getElementById('pos-meta').textContent = `t=${sim.elapsed.toFixed(0)}s`;
+    updateMetricCards(r, srcGx, srcGy);
+    updateInternalsStrip(r, wSpd, sRate, noise);
+    const errM = (Math.sqrt((r.est_gx - srcGx) ** 2 + (r.est_gy - srcGy) ** 2) * CELL_M).toFixed(1);
+    appendLog(`⚠ ${r.label}  | est:(${r.est_gx},${r.est_gy}) | err≈${errM}m | SNR:${(r.snr_db||0).toFixed(1)}dB | ${(r.confidence*100).toFixed(0)}%`, 'log-alert');
+    el('fft-meta').textContent  = `fdom: ${r.dominant_freq.toFixed(1)} Hz  |  passband: ${r.pass_lo.toFixed(0)}–${r.pass_hi.toFixed(0)} Hz`;
+    el('pos-meta').textContent  = `t = ${sim.elapsed.toFixed(0)} s`;
+    el('tdoa-meta').textContent = `ref: S(${(sim.tdoaData&&sim.tdoaData[0])||'?'})  |  8 nearest sensors`;
   } catch (e) {
     console.error('[pyAnalyse error]', e);
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// SECTION G — GRID CANVAS RENDERING
-// ══════════════════════════════════════════════════════════
+// ── Internals strip updater ───────────────────────────────
+function updateInternalsStrip(r, wSpd, sRate, noise) {
+  const nearDist = Math.min(...SENSORS.map(s =>
+    Math.sqrt((s.x - sim.target.gx) ** 2 + (s.y - sim.target.gy) ** 2))) * CELL_M;
+  const decayA   = Math.exp(-0.12 * nearDist);
+
+  // Signal model
+  el('iv-decay').textContent  = `d = ${nearDist.toFixed(1)} m  |  decay A = ${decayA.toFixed(4)}`;
+  el('iv-energy').textContent = `Signal energy E = ${(r.signal_energy||0).toFixed(5)}`;
+
+  // TDOA
+  const lambda = (wSpd / (r.dominant_freq || 1)).toFixed(2);
+  el('iv-wave').textContent   = `v = ${wSpd} m/s  |  λ = v/f = ${lambda} m`;
+  if (sim.tdoaData && sim.tdoaData.length > 0) {
+    const ref = sim.tdoaData.find(d => d.isRef);
+    el('iv-ref').textContent  = ref ? `ref sensor: S(${ref.gx},${ref.gy})  |  dist=${ref.dist_m.toFixed(1)}m` : '—';
+    const maxTDOA = Math.max(...sim.tdoaData.map(d => Math.abs(d.tdoa_ms)));
+    el('iv-tmax').textContent = `max |Δt| = ${maxTDOA.toFixed(3)} ms`;
+  }
+
+  // Grid search
+  el('iv-grid').textContent = `search space: ${COLS-2}×${ROWS-2} = ${(COLS-2)*(ROWS-2)} grid points`;
+  el('iv-est').textContent  = `est: (${r.est_gx},${r.est_gy})  →  (${r.est_gx*CELL_M}m, ${r.est_gy*CELL_M}m)`;
+  const srcGx = Math.round(sim.target.gx); const srcGy = Math.round(sim.target.gy);
+  el('iv-err').textContent  = `position error: ${(Math.sqrt((r.est_gx-srcGx)**2+(r.est_gy-srcGy)**2)*CELL_M).toFixed(1)} m`;
+
+  // Signal quality
+  el('iv-snr').textContent  = `SNR = ${(r.snr_db||0).toFixed(2)} dB`;
+  const T_ms = (1000/(r.dominant_freq||1)).toFixed(2);
+  el('iv-freq').textContent = `f_dom = ${r.dominant_freq.toFixed(2)} Hz  |  T = 1/f = ${T_ms} ms`;
+  el('iv-fs').textContent   = `f_s = ${Math.round(sRate)} Hz  |  N = ${Math.round(sRate)} samples`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// GRID CANVAS RENDERING
+// ═══════════════════════════════════════════════════════════
 function drawGrid() {
-  const W = gridCanvas.width;
-  const H = gridCanvas.height;
-  gCtx.fillStyle = '#040810';
-  gCtx.fillRect(0, 0, W, H);
-  const vg = gCtx.createRadialGradient(W/2, H/2, 40, W/2, H/2, Math.max(W, H) * 0.75);
-  vg.addColorStop(0, 'rgba(8,18,40,0)');
-  vg.addColorStop(1, 'rgba(0,2,8,0.65)');
-  gCtx.fillStyle = vg;
-  gCtx.fillRect(0, 0, W, H);
-  gCtx.strokeStyle = 'rgba(28,56,100,0.35)';
-  gCtx.lineWidth = 0.5;
+  const W = gridCanvas.width; const H = gridCanvas.height;
+  gCtx.fillStyle = '#040810'; gCtx.fillRect(0, 0, W, H);
+
+  // Vignette
+  const vg = gCtx.createRadialGradient(W/2, H/2, 40, W/2, H/2, Math.max(W,H)*0.7);
+  vg.addColorStop(0, 'rgba(0,10,30,0)'); vg.addColorStop(1, 'rgba(0,2,8,0.7)');
+  gCtx.fillStyle = vg; gCtx.fillRect(0, 0, W, H);
+
+  // Grid lines — neon dim cyan
+  gCtx.strokeStyle = 'rgba(0,180,220,0.12)'; gCtx.lineWidth = 0.5;
   for (let c = 0; c <= COLS; c++) {
-    const x = c * CELL;
-    gCtx.beginPath(); gCtx.moveTo(x, 0); gCtx.lineTo(x, H); gCtx.stroke();
+    gCtx.beginPath(); gCtx.moveTo(c*CELL, 0); gCtx.lineTo(c*CELL, H); gCtx.stroke();
   }
   for (let r = 0; r <= ROWS; r++) {
-    const y = r * CELL;
-    gCtx.beginPath(); gCtx.moveTo(0, y); gCtx.lineTo(W, y); gCtx.stroke();
+    gCtx.beginPath(); gCtx.moveTo(0, r*CELL); gCtx.lineTo(W, r*CELL); gCtx.stroke();
   }
-  gCtx.fillStyle = 'rgba(28,56,100,0.5)';
+
+  // Intersection dots
+  gCtx.fillStyle = 'rgba(0,180,220,0.35)';
   for (let c = 0; c <= COLS; c++) for (let r = 0; r <= ROWS; r++) {
-    gCtx.beginPath(); gCtx.arc(c * CELL, r * CELL, 1, 0, 6.283); gCtx.fill();
+    gCtx.beginPath(); gCtx.arc(c*CELL, r*CELL, 1, 0, 6.283); gCtx.fill();
   }
-  gCtx.font = '700 9px "Orbitron",monospace';
-  gCtx.fillStyle = 'rgba(28,56,100,0.2)';
-  gCtx.textAlign = 'center';
-  gCtx.fillText('GEOPHONE FIELD ARRAY — 64 PERIMETER SENSORS', W / 2, H / 2 - 7);
-  gCtx.font = '9px "Share Tech Mono",monospace';
-  gCtx.fillText('100 m × 70 m  ·  5 m/cell  ·  STEP=1', W / 2, H / 2 + 9);
+
+  // Axis scale labels along edges
+  gCtx.font = '7px "Share Tech Mono"'; gCtx.fillStyle = 'rgba(0,180,220,0.3)'; gCtx.textAlign = 'center';
+  for (let c = 0; c <= COLS; c += 4) gCtx.fillText(`${c*CELL_M}m`, c*CELL, H - 2);
+  gCtx.textAlign = 'right';
+  for (let r = 0; r <= ROWS; r += 2) gCtx.fillText(`${r*CELL_M}m`, CELL - 2, r*CELL + 9);
+
+  // Field watermark
+  gCtx.font = '700 8px "Orbitron",monospace'; gCtx.fillStyle = 'rgba(0,180,220,0.1)';
+  gCtx.textAlign = 'center'; gCtx.fillText('GEOPHONE FIELD — 64 SENSOR PERIMETER ARRAY', W/2, H/2 - 7);
+  gCtx.font = '7px "Share Tech Mono"';
+  gCtx.fillText('100 m × 70 m  ·  5 m/cell  ·  TDOA triangulation  ·  2 s analysis cycle', W/2, H/2 + 10);
   gCtx.textAlign = 'left';
 }
 
 function nearestSensors(gx, gy, n) {
   return new Set(
-    SENSORS.map((s, i) => ({ i, d: (s.x - gx) ** 2 + (s.y - gy) ** 2 }))
-           .sort((a, b) => a.d - b.d).slice(0, n).map(o => o.i)
+    SENSORS.map((s, i) => ({ i, d: (s.x-gx)**2 + (s.y-gy)**2 }))
+           .sort((a,b) => a.d - b.d).slice(0, n).map(o => o.i)
   );
 }
 
@@ -454,29 +592,63 @@ function drawSensors(activeSet, color) {
     const { cx, cy } = toPixel(s.x, s.y);
     const active = activeSet.has(i);
     if (active) {
-      const gr = gCtx.createRadialGradient(cx, cy, 1, cx, cy, 12);
-      gr.addColorStop(0, color + 'aa'); gr.addColorStop(1, color + '00');
-      gCtx.fillStyle = gr;
-      gCtx.beginPath(); gCtx.arc(cx, cy, 12, 0, 6.283); gCtx.fill();
+      // Bright glow
+      const gr = gCtx.createRadialGradient(cx, cy, 1, cx, cy, 16);
+      gr.addColorStop(0, color + 'cc'); gr.addColorStop(1, color + '00');
+      gCtx.fillStyle = gr; gCtx.beginPath(); gCtx.arc(cx, cy, 16, 0, 6.283); gCtx.fill();
     }
-    gCtx.beginPath(); gCtx.arc(cx, cy, active ? 5 : 3, 0, 6.283);
-    gCtx.fillStyle = active ? color : '#1e4a7a'; gCtx.fill();
-    gCtx.beginPath(); gCtx.arc(cx, cy, active ? 8 : 5, 0, 6.283);
-    gCtx.strokeStyle = active ? color + 'bb' : 'rgba(30,74,122,0.4)';
+    gCtx.beginPath(); gCtx.arc(cx, cy, active ? 5 : 2.5, 0, 6.283);
+    gCtx.fillStyle = active ? color : '#1a3a6a'; gCtx.fill();
+    gCtx.beginPath(); gCtx.arc(cx, cy, active ? 9 : 4.5, 0, 6.283);
+    gCtx.strokeStyle = active ? color + 'bb' : 'rgba(0,120,200,0.3)';
     gCtx.lineWidth = 1; gCtx.stroke();
   });
 }
 
+/** Draw TDOA time-delay labels near the 5 nearest active sensors */
+function drawSensorTDOALabels(activeSet, color) {
+  if (!sim.tdoaData) return;
+  sim.tdoaData.forEach(td => {
+    // find sensor index
+    const idx = SENSORS.findIndex(s => s.x === td.gx && s.y === td.gy);
+    if (idx < 0 || !activeSet.has(idx)) return;
+    const { cx, cy } = toPixel(td.gx, td.gy);
+    const label = td.isRef
+      ? 'Δt=0 (REF)'
+      : `Δt=${td.tdoa_ms >= 0 ? '+' : ''}${td.tdoa_ms.toFixed(2)}ms`;
+    // Label offset: push outward from perimeter
+    let ox = 0; let oy = 0;
+    if (td.gy === 0)         oy = -12;
+    else if (td.gy === ROWS-1) oy = 12;
+    else if (td.gx === 0)     ox = -8;
+    else                        ox = 8;
+
+    gCtx.font = '6px "Share Tech Mono"';
+    gCtx.fillStyle = td.isRef ? '#ffffff' : color;
+    gCtx.textAlign = ox < 0 ? 'right' : (ox > 0 ? 'left' : 'center');
+    gCtx.fillText(label, cx + ox * 8, cy + oy);
+
+    // Small dot line from sensor to label
+    if (Math.abs(oy) > 0 || Math.abs(ox) > 0) {
+      gCtx.beginPath();
+      gCtx.moveTo(cx, cy + (oy < 0 ? -5 : oy > 0 ? 5 : 0));
+      gCtx.lineTo(cx + ox * 7, cy + oy - 2);
+      gCtx.strokeStyle = color + '55'; gCtx.lineWidth = 0.5; gCtx.stroke();
+    }
+  });
+  gCtx.textAlign = 'left';
+}
+
 function drawTrail() {
   const trail = sim.targetTrail;
-  const color = COLORS[sim.trigger] || '#4fc3f7';
+  const color = NEON[sim.trigger] || NEON.cyan;
   for (let i = 1; i < trail.length; i++) {
-    const alpha = (i / trail.length) * 0.55;
-    const { cx: x1, cy: y1 } = toPixel(trail[i - 1].gx, trail[i - 1].gy);
-    const { cx: x2, cy: y2 } = toPixel(trail[i].gx,     trail[i].gy);
+    const alpha = (i / trail.length) * 0.6;
+    const { cx: x1, cy: y1 } = toPixel(trail[i-1].gx, trail[i-1].gy);
+    const { cx: x2, cy: y2 } = toPixel(trail[i].gx,   trail[i].gy);
     gCtx.beginPath(); gCtx.moveTo(x1, y1); gCtx.lineTo(x2, y2);
-    gCtx.strokeStyle = color + Math.round(alpha * 255).toString(16).padStart(2, '0');
-    gCtx.lineWidth = 1.5; gCtx.stroke();
+    gCtx.strokeStyle = color + Math.round(alpha * 255).toString(16).padStart(2,'0');
+    gCtx.lineWidth = 2; gCtx.stroke();
   }
 }
 
@@ -484,194 +656,476 @@ function drawEstimated() {
   const e = sim.estimated;
   if (e.gx < 0) return;
   const { cx, cy } = toPixel(e.gx, e.gy);
-  const color = COLORS[sim.trigger] || '#4fc3f7';
-  gCtx.setLineDash([5, 5]);
-  gCtx.strokeStyle = color + '55'; gCtx.lineWidth = 0.8;
+  const color = NEON[sim.trigger] || NEON.cyan;
+  // Dashed lines
+  gCtx.setLineDash([4,5]); gCtx.strokeStyle = color + '44'; gCtx.lineWidth = 0.8;
   gCtx.beginPath(); gCtx.moveTo(cx, 0); gCtx.lineTo(cx, gridCanvas.height); gCtx.stroke();
   gCtx.beginPath(); gCtx.moveTo(0, cy); gCtx.lineTo(gridCanvas.width, cy); gCtx.stroke();
   gCtx.setLineDash([]);
-  const D = 9;
+  // Diamond
+  const D = 10;
   gCtx.beginPath();
-  gCtx.moveTo(cx, cy - D); gCtx.lineTo(cx + D, cy);
-  gCtx.lineTo(cx, cy + D); gCtx.lineTo(cx - D, cy); gCtx.closePath();
-  gCtx.fillStyle = color + '33'; gCtx.strokeStyle = color; gCtx.lineWidth = 1.5;
+  gCtx.moveTo(cx, cy-D); gCtx.lineTo(cx+D, cy);
+  gCtx.lineTo(cx, cy+D); gCtx.lineTo(cx-D, cy); gCtx.closePath();
+  gCtx.fillStyle = color + '30'; gCtx.strokeStyle = color; gCtx.lineWidth = 1.8;
   gCtx.fill(); gCtx.stroke();
-  gCtx.font = 'bold 8px "Share Tech Mono"';
-  gCtx.fillStyle = color; gCtx.textAlign = 'left';
-  gCtx.fillText(`EST(${e.gx},${e.gy})`, cx + 12, cy - 5);
+  // Glow
+  gCtx.shadowColor = color; gCtx.shadowBlur = 8; gCtx.stroke(); gCtx.shadowBlur = 0;
+  gCtx.font = 'bold 7px "Share Tech Mono"'; gCtx.fillStyle = color; gCtx.textAlign = 'left';
+  gCtx.fillText(`TDOA EST (${e.gx*CELL_M}m, ${e.gy*CELL_M}m)`, cx + 13, cy - 4);
 }
 
 function drawTarget() {
   if (!sim.running) return;
   const { cx, cy } = toPixel(sim.target.gx, sim.target.gy);
-  const color = COLORS[sim.trigger] || '#fff';
+  const color = NEON[sim.trigger] || NEON.cyan;
   const t = sim.elapsed;
-  const pulseR = 16 + 4 * Math.sin(t * 8);
-  const gr = gCtx.createRadialGradient(cx, cy, 2, cx, cy, pulseR);
-  gr.addColorStop(0, color + 'cc'); gr.addColorStop(1, color + '00');
-  gCtx.fillStyle = gr; gCtx.beginPath(); gCtx.arc(cx, cy, pulseR, 0, 6.283); gCtx.fill();
+  // Pulsing glow
+  const pR = 18 + 5 * Math.sin(t * 9);
+  const gr = gCtx.createRadialGradient(cx, cy, 2, cx, cy, pR);
+  gr.addColorStop(0, color + 'ee'); gr.addColorStop(1, color + '00');
+  gCtx.fillStyle = gr; gCtx.beginPath(); gCtx.arc(cx, cy, pR, 0, 6.283); gCtx.fill();
+  // Inner dot with glow
+  gCtx.shadowColor = color; gCtx.shadowBlur = 12;
   gCtx.beginPath(); gCtx.arc(cx, cy, 5, 0, 6.283);
   gCtx.fillStyle = '#ffffff'; gCtx.fill();
-  gCtx.beginPath(); gCtx.arc(cx, cy, 10, 0, 6.283);
-  gCtx.strokeStyle = color; gCtx.lineWidth = 2; gCtx.stroke();
-  const rx = (sim.target.gx * 5).toFixed(0);
-  const ry = (sim.target.gy * 5).toFixed(0);
+  gCtx.shadowBlur = 0;
+  // Outer ring
+  gCtx.beginPath(); gCtx.arc(cx, cy, 11, 0, 6.283);
+  gCtx.strokeStyle = color; gCtx.lineWidth = 2.5; gCtx.stroke();
+  // Velocity arrow
+  const spd = parseFloat(el('s-tspeed').value);
+  const mag = Math.sqrt(sim.target.vx**2 + sim.target.vy**2)||1;
+  const arrowLen = 18 * (spd / 4);
+  const ax = sim.target.vx/mag*arrowLen; const ay = sim.target.vy/mag*arrowLen;
+  gCtx.beginPath(); gCtx.moveTo(cx, cy); gCtx.lineTo(cx+ax, cy+ay);
+  gCtx.strokeStyle = color + 'bb'; gCtx.lineWidth = 1.5; gCtx.stroke();
+  // Arrowhead
+  const headAng = Math.atan2(ay, ax);
+  gCtx.beginPath();
+  gCtx.moveTo(cx+ax, cy+ay);
+  gCtx.lineTo(cx+ax-6*Math.cos(headAng-0.4), cy+ay-6*Math.sin(headAng-0.4));
+  gCtx.lineTo(cx+ax-6*Math.cos(headAng+0.4), cy+ay-6*Math.sin(headAng+0.4));
+  gCtx.closePath(); gCtx.fillStyle = color + 'bb'; gCtx.fill();
+  // Label
+  const rx = (sim.target.gx*CELL_M).toFixed(0); const ry = (sim.target.gy*CELL_M).toFixed(0);
   gCtx.font = '7px "Share Tech Mono"'; gCtx.fillStyle = '#fff'; gCtx.textAlign = 'left';
-  gCtx.fillText(`▶ (${rx}m,${ry}m)`, cx + 13, cy + 4);
+  gCtx.fillText(`▶ (${rx}m, ${ry}m)  v=${spd}c/s`, cx + 14, cy + 4);
+  gCtx.textAlign = 'left';
 }
 
-// ══════════════════════════════════════════════════════════
-// SECTION H — WAVEFORM CANVAS
-// ══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// WAVEFORM CANVAS — with labeled axes
+// ═══════════════════════════════════════════════════════════
 function renderWaveform() {
-  const c   = document.getElementById('wf-canvas');
-  const ctx = c.getContext('2d');
+  const c = el('wf-canvas'); const ctx = c.getContext('2d');
   const W = c.width; const H = c.height;
-  if (W === 0 || H === 0) return;
-  ctx.fillStyle = '#07080f'; ctx.fillRect(0, 0, W, H);
+  if (W < 10 || H < 10) return;
+
+  ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
+
+  // Layout margins
+  const ML = 32; // left margin for Y axis
+  const MB = 18; // bottom margin for X axis
+  const PW = W - ML; const PH = H - MB;
+  const midY = ML + 0; // N/A, plot starts at ML
+
   if (!sim.running) {
-    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#2a3a55'; ctx.textAlign = 'center';
-    ctx.fillText('— awaiting trigger —', W / 2, H / 2); ctx.textAlign = 'left'; return;
+    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#1e3050';
+    ctx.textAlign = 'center'; ctx.fillText('— awaiting trigger —', W/2, H/2); ctx.textAlign = 'left'; return;
   }
-  const color = COLORS[sim.trigger] || '#4fc3f7';
+  const color = NEON[sim.trigger] || NEON.cyan;
+
+  // Plot area outline
+  ctx.strokeStyle = 'rgba(0,180,220,0.1)'; ctx.lineWidth = 0.5;
+  ctx.strokeRect(ML, 0, PW, PH);
+
+  // Y-axis label — rotated "Amplitude"
+  ctx.save(); ctx.translate(9, PH/2); ctx.rotate(-Math.PI/2);
+  ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center';
+  ctx.fillText('Amplitude', 0, 0); ctx.restore();
+
+  // Y axis ticks & labels: +1.0, +0.5, 0, -0.5, -1.0
+  const yLevels = [1.0, 0.5, 0, -0.5, -1.0];
+  ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right';
+  yLevels.forEach(v => {
+    const y = (PH / 2) - v * (PH / 2) * 0.85;
+    ctx.fillStyle = v === 0 ? '#2a4560' : '#1e3050'; ctx.fillText(v.toFixed(1), ML - 3, y + 3);
+    ctx.beginPath(); ctx.strokeStyle = v === 0 ? 'rgba(0,180,220,0.25)' : 'rgba(0,180,220,0.08)';
+    ctx.lineWidth = v === 0 ? 1 : 0.5;
+    ctx.moveTo(ML, y); ctx.lineTo(W, y); ctx.stroke();
+  });
+
+  // X-axis ticks & label: 0ms … 1500ms (rolling buffer ≈1.5s worth at 200 Hz)
+  const fs = parseFloat(el('s-srate').value);
+  const bufDurMs = (sim.wfBuf.length / fs) * 1000;
+  ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center'; ctx.font = '7px "Share Tech Mono"';
+  const tSteps = 5;
+  for (let i = 0; i <= tSteps; i++) {
+    const frac = i / tSteps;
+    const x = ML + frac * PW;
+    const tMs = (frac * bufDurMs).toFixed(0);
+    ctx.fillText(`${tMs}ms`, x, H - 3);
+    ctx.beginPath(); ctx.strokeStyle = 'rgba(0,180,220,0.08)'; ctx.lineWidth = 0.5;
+    ctx.moveTo(x, 0); ctx.lineTo(x, PH); ctx.stroke();
+  }
+  // X-axis label "t (ms)"
+  ctx.fillStyle = '#3a5070'; ctx.textAlign = 'right'; ctx.font = '7px "Share Tech Mono"';
+  ctx.fillText('t (ms)', W - 2, H - 5);
+
+  // Signal trace
   const buf = sim.wfBuf; const N = buf.length;
-  ctx.beginPath(); ctx.strokeStyle = '#1a2535'; ctx.lineWidth = 0.7;
-  ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
-  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 1.3;
+  ctx.shadowColor = color; ctx.shadowBlur = 4;
   for (let i = 0; i < N; i++) {
-    const x = (i / N) * W; const y = H / 2 - buf[i] * (H / 2) * 0.75;
+    const x = ML + (i / N) * PW;
+    const y = PH / 2 - buf[i] * (PH / 2) * 0.85;
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
-  ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, H / 2);
-  for (let i = 0; i < N; i++) {
-    ctx.lineTo((i / N) * W, H / 2 - buf[i] * (H / 2) * 0.75);
-  }
-  ctx.lineTo(W, H / 2); ctx.closePath();
-  ctx.fillStyle = color + '20'; ctx.fill();
-  document.getElementById('wf-meta').textContent = `amp: ${Math.abs(buf[N - 1]).toFixed(3)}`;
+  ctx.stroke(); ctx.shadowBlur = 0;
+
+  // Fill under curve
+  ctx.beginPath(); ctx.moveTo(ML, PH / 2);
+  for (let i = 0; i < N; i++) ctx.lineTo(ML + (i/N)*PW, PH/2 - buf[i]*(PH/2)*0.85);
+  ctx.lineTo(W, PH/2); ctx.closePath();
+  ctx.fillStyle = color + '18'; ctx.fill();
+
+  el('wf-meta').textContent = `amp: ${Math.abs(buf[N-1]).toFixed(4)}  |  σ_noise: ${parseFloat(el('s-noise').value).toFixed(2)}`;
 }
 
-// ══════════════════════════════════════════════════════════
-// SECTION I — FFT CANVAS
-// ══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// FFT SPECTRUM CANVAS — with labeled axes
+// ═══════════════════════════════════════════════════════════
 function renderFFT() {
-  const c   = document.getElementById('fft-canvas');
-  const ctx = c.getContext('2d');
+  const c = el('fft-canvas'); const ctx = c.getContext('2d');
   const W = c.width; const H = c.height;
-  if (W === 0 || H === 0) return;
-  ctx.fillStyle = '#07080f'; ctx.fillRect(0, 0, W, H);
+  if (W < 10 || H < 10) return;
+  ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
+
+  const ML = 28; const MB = 17;
+  const PW = W - ML; const PH = H - MB;
+
   if (!sim.fftData) {
-    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#2a3a55'; ctx.textAlign = 'center';
-    ctx.fillText('— waiting for analysis —', W / 2, H / 2); ctx.textAlign = 'left'; return;
+    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#1e3050';
+    ctx.textAlign = 'center'; ctx.fillText('— waiting for analysis —', W/2, H/2); ctx.textAlign = 'left'; return;
   }
   const { freqs, mag, passLo, passHi, domFreq } = sim.fftData;
-  const color = COLORS[sim.trigger] || '#ff6b35';
+  const color = NEON[sim.trigger] || NEON.cyan;
   const maxFreq = 120;
-  const fToX = f => (f / maxFreq) * W;
-  ctx.fillStyle = color + '18';
-  ctx.fillRect(fToX(passLo), 0, fToX(passHi) - fToX(passLo), H);
-  ctx.beginPath(); ctx.moveTo(0, H);
-  for (let i = 0; i < freqs.length; i++) ctx.lineTo(fToX(freqs[i]), H - mag[i] * (H - 4) - 2);
-  ctx.lineTo(W, H); ctx.closePath();
-  ctx.fillStyle = color + '55'; ctx.strokeStyle = color; ctx.lineWidth = 1;
-  ctx.fill(); ctx.stroke();
+  const fToX = f => ML + (f / maxFreq) * PW;
+
+  // Plot border
+  ctx.strokeStyle = 'rgba(0,180,220,0.1)'; ctx.lineWidth = 0.5;
+  ctx.strokeRect(ML, 0, PW, PH);
+
+  // Y-axis label "Mag"
+  ctx.save(); ctx.translate(8, PH/2); ctx.rotate(-Math.PI/2);
+  ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center';
+  ctx.fillText('Mag', 0, 0); ctx.restore();
+
+  // Y axis ticks: 0, 0.25, 0.50, 0.75, 1.0
+  ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right';
+  [0, 0.25, 0.5, 0.75, 1.0].forEach(v => {
+    const y = PH - v * PH;
+    ctx.fillStyle = '#1e3050'; ctx.fillText(v.toFixed(2), ML-3, y + 3);
+    ctx.beginPath(); ctx.strokeStyle = v === 1.0 ? 'rgba(0,180,220,0.12)' : 'rgba(0,180,220,0.07)';
+    ctx.lineWidth = 0.5; ctx.moveTo(ML, y); ctx.lineTo(W, y); ctx.stroke();
+  });
+
+  // Passband shaded region
+  ctx.fillStyle = color + '1a';
+  ctx.fillRect(fToX(passLo), 0, fToX(passHi)-fToX(passLo), PH);
+  // Passband edge lines
+  ctx.setLineDash([3,3]);
+  [passLo, passHi].forEach(f => {
+    ctx.beginPath(); ctx.strokeStyle = color + '55'; ctx.lineWidth = 0.8;
+    ctx.moveTo(fToX(f), 0); ctx.lineTo(fToX(f), PH); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  // Passband labels
+  ctx.font = '6px "Share Tech Mono"'; ctx.fillStyle = color + '88'; ctx.textAlign = 'center';
+  ctx.fillText(`${passLo}Hz`, fToX(passLo), 7);
+  ctx.fillText(`${passHi}Hz`, fToX(passHi), 7);
+
+  // Spectrum fill + line
+  ctx.beginPath(); ctx.moveTo(ML, PH);
+  for (let i = 0; i < freqs.length; i++) ctx.lineTo(fToX(freqs[i]), PH - mag[i] * PH);
+  ctx.lineTo(W, PH); ctx.closePath();
+  ctx.fillStyle = color + '50'; ctx.fill();
+  ctx.beginPath();
+  for (let i = 0; i < freqs.length; i++) {
+    const x = fToX(freqs[i]); const y = PH - mag[i] * PH;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle = color; ctx.lineWidth = 1.3;
+  ctx.shadowColor = color; ctx.shadowBlur = 5; ctx.stroke(); ctx.shadowBlur = 0;
+
+  // Dominant frequency vertical line
   const dx = fToX(domFreq);
-  ctx.beginPath(); ctx.moveTo(dx, 0); ctx.lineTo(dx, H);
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
-  ctx.font = '8px "Share Tech Mono"'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+  ctx.beginPath(); ctx.moveTo(dx, 0); ctx.lineTo(dx, PH);
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.3;
+  ctx.setLineDash([4,3]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
   ctx.fillText(`${domFreq.toFixed(1)} Hz`, dx + 3, 11);
-  ctx.fillStyle = '#3a4a62';
-  [20, 40, 60, 80, 100].forEach(f => {
-    const x = fToX(f); ctx.fillText(`${f}`, x - 6, H - 2);
-    ctx.beginPath(); ctx.strokeStyle = '#1e2d45'; ctx.lineWidth = 0.5;
-    ctx.moveTo(x, 0); ctx.lineTo(x, H - 12); ctx.stroke();
+
+  // X-axis ticks & label
+  ctx.textAlign = 'center'; ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070';
+  [0, 20, 40, 60, 80, 100, 120].forEach(f => {
+    const x = fToX(f);
+    ctx.fillText(`${f}`, x, H - 3);
+    ctx.beginPath(); ctx.strokeStyle = 'rgba(0,180,220,0.1)'; ctx.lineWidth = 0.5;
+    ctx.moveTo(x, 0); ctx.lineTo(x, PH); ctx.stroke();
+  });
+  // X-axis label
+  ctx.fillStyle = '#3a5070'; ctx.textAlign = 'right';
+  ctx.fillText('Freq (Hz)', W - 2, H - 5);
+}
+
+// ═══════════════════════════════════════════════════════════
+// POSITION vs TIME CANVAS — X(t) and Y(t), labeled axes
+// ═══════════════════════════════════════════════════════════
+function renderPositionChart() {
+  const c = el('pos-canvas'); const ctx = c.getContext('2d');
+  const W = c.width; const H = c.height;
+  if (W < 10 || H < 10) return;
+  ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
+
+  const ML = 32; const MB = 14; // margins
+  const hist = sim.posHistory;
+
+  if (hist.length < 2) {
+    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#1e3050';
+    ctx.textAlign = 'center'; ctx.fillText('— collecting data… —', W/2, H/2); ctx.textAlign = 'left'; return;
+  }
+
+  const HT = (H - MB) / 2; // height of each sub-chart
+  const tMin = hist[0].t; const tMax = Math.max(hist[hist.length-1].t, tMin + 1);
+  const XMAX_M = (COLS - 1) * CELL_M;  // 95m
+  const YMAX_M = (ROWS - 1) * CELL_M;  // 65m
+
+  // Divider
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(0,180,220,0.2)'; ctx.lineWidth = 1;
+  ctx.moveTo(ML, HT); ctx.lineTo(W, HT); ctx.stroke();
+
+  /** Draw one half-chart */
+  function drawHalf(
+    trueGetter, estGetter, maxM, yOffset,
+    trueColor, estColor, yLabel, maxLabel
+  ) {
+    const plotH = HT - MB;
+
+    // Border
+    ctx.strokeStyle = 'rgba(0,180,220,0.08)'; ctx.lineWidth = 0.5;
+    ctx.strokeRect(ML, yOffset, W - ML, plotH);
+
+    // Y-axis label (rotated)
+    ctx.save(); ctx.translate(9, yOffset + plotH/2); ctx.rotate(-Math.PI/2);
+    ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center';
+    ctx.fillText(yLabel, 0, 0); ctx.restore();
+
+    // Y-axis ticks (0, max/2, max)
+    ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right';
+    [0, 0.5, 1.0].forEach(frac => {
+      const val = frac * maxM;
+      const y = yOffset + plotH - frac * plotH;
+      ctx.fillStyle = '#1e3050'; ctx.fillText(`${val.toFixed(0)}m`, ML-3, y+3);
+      ctx.beginPath(); ctx.strokeStyle = 'rgba(0,180,220,0.07)'; ctx.lineWidth = 0.5;
+      ctx.moveTo(ML, y); ctx.lineTo(W, y); ctx.stroke();
+    });
+
+    // X-axis time ticks
+    ctx.textAlign = 'center'; ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070';
+    const tSteps = 4;
+    for (let i = 0; i <= tSteps; i++) {
+      const frac = i / tSteps;
+      const x = ML + frac * (W - ML);
+      const tv = (tMin + frac * (tMax - tMin)).toFixed(0);
+      if (yOffset > HT/2) ctx.fillText(`${tv}s`, x, yOffset + plotH + MB - 3);
+      ctx.beginPath(); ctx.strokeStyle = 'rgba(0,180,220,0.07)'; ctx.lineWidth = 0.5;
+      ctx.moveTo(x, yOffset); ctx.lineTo(x, yOffset + plotH); ctx.stroke();
+    }
+    if (yOffset > HT/2) {
+      ctx.fillStyle = '#3a5070'; ctx.textAlign = 'right';
+      ctx.fillText('t (s)', W-2, yOffset + plotH + MB - 3);
+    }
+
+    const mapY = (valM) => yOffset + plotH - (valM / maxM) * plotH;
+    const mapX = (t)    => ML + ((t - tMin) / (tMax - tMin)) * (W - ML);
+
+    // True series (solid)
+    ctx.beginPath(); ctx.strokeStyle = trueColor; ctx.lineWidth = 1.6;
+    ctx.shadowColor = trueColor; ctx.shadowBlur = 4;
+    hist.forEach((pt, i) => {
+      const x = mapX(pt.t); const y = mapY(trueGetter(pt) * CELL_M);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke(); ctx.shadowBlur = 0;
+
+    // Estimated series (dashed)
+    ctx.beginPath(); ctx.strokeStyle = estColor; ctx.lineWidth = 1.2;
+    ctx.setLineDash([5,3]);
+    hist.forEach((pt, i) => {
+      const x = mapX(pt.t); const y = mapY(estGetter(pt) * CELL_M);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+
+    // Legend inside top-right of sub-chart
+    const lx = W - 78; const ly = yOffset + 8;
+    ctx.font = '6px "Share Tech Mono"';
+    ctx.fillStyle = trueColor; ctx.fillRect(lx, ly, 14, 1.5); ctx.fillText('TRUE', lx+17, ly+3);
+    ctx.strokeStyle = estColor; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(lx, ly+8); ctx.lineTo(lx+14, ly+8); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = estColor; ctx.fillText('EST', lx+17, ly+11);
+  }
+
+  // Top half: X position (metres)
+  // Y-axis label added inside drawHalf
+  ctx.font = '6px "Share Tech Mono"'; ctx.fillStyle = '#2a4060'; ctx.textAlign = 'left';
+  ctx.fillText('X-coord', ML+3, 8);
+  drawHalf(p => p.tGx, p => p.eGx, XMAX_M, 0, '#00e5ff', '#00ffaa', 'X (m)', `${XMAX_M}m`);
+
+  ctx.fillText('Y-coord', ML+3, HT+8);
+  drawHalf(p => p.tGy, p => p.eGy, YMAX_M, HT, '#ffe600', '#ff5500', 'Y (m)', `${YMAX_M}m`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TDOA ARRIVAL TIME BAR CHART CANVAS
+// ═══════════════════════════════════════════════════════════
+function renderTDOAChart() {
+  const c = el('tdoa-canvas'); if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width; const H = c.height;
+  if (W < 10 || H < 10) return;
+  ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
+
+  if (!sim.tdoaData || sim.tdoaData.length === 0) {
+    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#1e3050';
+    ctx.textAlign = 'center'; ctx.fillText('— run analysis for TDOA —', W/2, H/2); ctx.textAlign = 'left'; return;
+  }
+
+  const color = NEON[sim.trigger] || NEON.cyan;
+  const data = sim.tdoaData.slice(0, 8); // up to 8 sensors
+  const N = data.length;
+  const rowH = H / (N + 0.5);
+  const LABEL_W = 62; const VAL_W = 46; const DIST_W = 34;
+  const barArea = W - LABEL_W - VAL_W - DIST_W;
+  const maxTDOA = Math.max(...data.map(d => Math.abs(d.tdoa_ms)), 0.001);
+  const centerX = LABEL_W + barArea / 2;
+
+  // Center line (t = 0)
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(0,180,220,0.3)'; ctx.lineWidth = 0.8;
+  ctx.moveTo(centerX, 0); ctx.lineTo(centerX, H); ctx.stroke();
+
+  // Scale labels
+  ctx.font = '6px "Share Tech Mono"'; ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center';
+  ctx.fillText('0', centerX, H - 2);
+  ctx.fillText(`−${maxTDOA.toFixed(2)}ms`, LABEL_W + 4, H - 2);
+  ctx.fillText(`+${maxTDOA.toFixed(2)}ms`, LABEL_W + barArea - 4, H - 2);
+
+  // Column headers
+  ctx.fillStyle = '#2a3a52'; ctx.textAlign = 'left';
+  ctx.fillText('SENSOR', 2, 8);
+  ctx.fillStyle = '#2a3a52'; ctx.textAlign = 'right';
+  ctx.fillText('Δt', LABEL_W + barArea + VAL_W - 2, 8);
+  ctx.fillText('dist', W - 2, 8);
+
+  data.forEach((sensor, i) => {
+    const y = 14 + (i + 0.5) * ((H - 16) / N);
+    const scaleX = (barArea / 2) / maxTDOA;
+    const barLen = sensor.tdoa_ms * scaleX;
+
+    // Sensor label
+    ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right';
+    ctx.fillStyle = sensor.isRef ? '#ffffff' : '#3a5070';
+    ctx.fillText(`S(${sensor.gx},${sensor.gy})`, LABEL_W - 3, y + 3);
+
+    if (sensor.isRef) {
+      // Reference marker
+      ctx.beginPath(); ctx.arc(centerX, y, 4, 0, 6.283);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.font = '6px "Share Tech Mono"'; ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff';
+      ctx.fillText('● REF', LABEL_W + barArea + 3, y + 3);
+    } else {
+      // Bar
+      const alpha = 0.3 + 0.45 * (1 - i / N);
+      const barX = barLen >= 0 ? centerX : centerX + barLen;
+      const barW = Math.abs(barLen);
+      ctx.fillStyle = color + Math.round(alpha * 255).toString(16).padStart(2,'0');
+      ctx.fillRect(barX, y - 4, Math.max(barW, 1.5), 8);
+      // Bar outline
+      ctx.strokeStyle = color + '88'; ctx.lineWidth = 0.5;
+      ctx.strokeRect(barX, y - 4, Math.max(barW, 1.5), 8);
+      // TDOA value
+      const sign = sensor.tdoa_ms >= 0 ? '+' : '';
+      ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right'; ctx.fillStyle = color;
+      ctx.fillText(`${sign}${sensor.tdoa_ms.toFixed(3)}ms`, LABEL_W+barArea+VAL_W-2, y+3);
+    }
+    // Distance column
+    ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right'; ctx.fillStyle = '#2a4060';
+    ctx.fillText(`${sensor.dist_m.toFixed(0)}m`, W - 2, y + 3);
+
+    // Horizontal divider
+    ctx.beginPath(); ctx.strokeStyle = 'rgba(0,80,120,0.2)'; ctx.lineWidth = 0.5;
+    ctx.moveTo(0, y + rowH/2); ctx.lineTo(W, y + rowH/2); ctx.stroke();
   });
 }
 
-// ══════════════════════════════════════════════════════════
-// SECTION J — POSITION vs TIME CANVAS
-// ══════════════════════════════════════════════════════════
-function renderPositionChart() {
-  const c   = document.getElementById('pos-canvas');
-  const ctx = c.getContext('2d');
-  const W = c.width; const H = c.height;
-  if (W === 0 || H === 0) return;
-  ctx.fillStyle = '#07080f'; ctx.fillRect(0, 0, W, H);
-  const hist = sim.posHistory;
-  if (hist.length < 2) {
-    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#2a3a55'; ctx.textAlign = 'center';
-    ctx.fillText('— collecting data… —', W / 2, H / 2); ctx.textAlign = 'left'; return;
-  }
-  const HT = H / 2; const PAD = 4;
-  const tMin = hist[0].t; const tMax = Math.max(hist[hist.length - 1].t, tMin + 1);
-  ctx.beginPath(); ctx.strokeStyle = '#1e2d45'; ctx.lineWidth = 1;
-  ctx.moveTo(0, HT); ctx.lineTo(W, HT); ctx.stroke();
-  ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#4a5568';
-  ctx.fillText('X', 2, HT - 4); ctx.fillText('Y', 2, H - 4);
-  const mapY = (v, max, yOff, h) => yOff + (h - PAD) - (v / max) * (h - PAD * 2) + PAD;
-  function series(getter, maxVal, yOffset, height, color, dashed) {
-    ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 1.2;
-    dashed ? ctx.setLineDash([4, 3]) : ctx.setLineDash([]);
-    hist.forEach((pt, i) => {
-      const x = PAD + ((pt.t - tMin) / (tMax - tMin)) * (W - PAD * 2);
-      const y = mapY(getter(pt), maxVal, yOffset, height);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.stroke(); ctx.setLineDash([]);
-  }
-  series(p => p.tGx, COLS, 0,  HT, '#4fc3f7', false);
-  series(p => p.eGx, COLS, 0,  HT, '#00ff88', true);
-  series(p => p.tGy, ROWS, HT, HT, '#ffd700', false);
-  series(p => p.eGy, ROWS, HT, HT, '#ff6b35', true);
-}
-
-// ══════════════════════════════════════════════════════════
-// SECTION K — DOM HELPERS
-// ══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// DOM HELPERS
+// ═══════════════════════════════════════════════════════════
 function updateClassificationBanner(r) {
-  const div = document.getElementById('classification-section');
-  div.classList.remove('hidden');
-  document.getElementById('cls-icon').textContent   = r.icon;
-  document.getElementById('cls-label').textContent  = r.label;
-  document.getElementById('cls-label').style.color  = r.color;
-  document.getElementById('cls-details').textContent =
-    `dom: ${r.dominant_freq.toFixed(1)} Hz  |  TDOA est: (${r.est_gx},${r.est_gy})  |  passband: ${r.pass_lo.toFixed(0)}–${r.pass_hi.toFixed(0)} Hz`;
-  document.getElementById('cls-conf-pct').textContent  = `${(r.confidence * 100).toFixed(0)}%`;
-  document.getElementById('cls-conf-pct').style.color  = r.color;
-  document.getElementById('cls-conf-bar').style.width  = `${r.confidence * 100}%`;
-  document.getElementById('cls-conf-bar').style.background = r.color;
+  el('classification-section').classList.remove('hidden');
+  el('cls-icon').textContent   = r.icon;
+  el('cls-label').textContent  = r.label;
+  el('cls-label').style.color  = r.color;
+  el('cls-details').textContent =
+    `f_dom: ${r.dominant_freq.toFixed(1)} Hz  ·  TDOA est: (${r.est_gx*CELL_M}m, ${r.est_gy*CELL_M}m)  ·  passband: ${r.pass_lo.toFixed(0)}–${r.pass_hi.toFixed(0)} Hz  ·  SNR: ${(r.snr_db||0).toFixed(1)} dB`;
+  el('cls-conf-pct').textContent  = `${(r.confidence*100).toFixed(0)}%`;
+  el('cls-conf-pct').style.color  = r.color;
+  el('cls-conf-bar').style.width  = `${r.confidence*100}%`;
+  el('cls-conf-bar').style.background = r.color;
 }
 
-function updateMetricCards(r) {
-  document.getElementById('metric-freq').innerHTML = `${r.dominant_freq.toFixed(1)} <span class="metric-unit">Hz</span>`;
-  document.getElementById('metric-conf').innerHTML = `${(r.confidence * 100).toFixed(0)} <span class="metric-unit">%</span>`;
-  document.getElementById('metric-x').textContent = r.est_gx;
-  document.getElementById('metric-y').textContent = r.est_gy;
-  ['metric-freq','metric-conf','metric-x','metric-y'].forEach(id =>
-    document.getElementById(id).style.color = r.color
-  );
+function updateMetricCards(r, srcGx, srcGy) {
+  const errM = Math.sqrt((r.est_gx-srcGx)**2 + (r.est_gy-srcGy)**2) * CELL_M;
+  const wSpd = parseFloat(el('s-wspeed').value);
+  const lambda = wSpd / (r.dominant_freq || 1);
+  const T_ms = 1000 / (r.dominant_freq || 1);
+
+  el('metric-freq').innerHTML   = `${r.dominant_freq.toFixed(1)} <span class="metric-unit">Hz</span>`;
+  el('metric-conf').innerHTML   = `${(r.confidence*100).toFixed(0)} <span class="metric-unit">%</span>`;
+  el('metric-x').textContent    = r.est_gx;
+  el('metric-y').textContent    = r.est_gy;
+  el('metric-snr').innerHTML    = `${(r.snr_db||0).toFixed(1)} <span class="metric-unit">dB</span>`;
+  el('metric-err').innerHTML    = `${errM.toFixed(1)} <span class="metric-unit">m</span>`;
+  el('metric-lambda').innerHTML = `${lambda.toFixed(1)} <span class="metric-unit">m</span>`;
+  el('metric-period').innerHTML = `${T_ms.toFixed(1)} <span class="metric-unit">ms</span>`;
+
+  ['metric-freq','metric-conf','metric-x','metric-y',
+   'metric-snr','metric-err','metric-lambda','metric-period'].forEach(id => {
+    el(id).style.color = r.color;
+  });
 }
 
 function appendLog(msg, cls) {
-  const log = document.getElementById('event-log');
+  const log = el('event-log');
   const n   = new Date();
   const ts  = `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
   log.innerHTML = `<span class="log-entry ${cls}"><span class="log-timestamp">[${ts}]</span>${msg}</span><br/>` + log.innerHTML;
   const lines = log.innerHTML.split('<br/>');
-  if (lines.length > 40) log.innerHTML = lines.slice(0, 40).join('<br/>');
+  if (lines.length > 40) log.innerHTML = lines.slice(0,40).join('<br/>');
 }
 
-function setStatus(text) {
-  document.getElementById('status-text').textContent = text;
-}
+function setStatus(text) { el('status-text').textContent = text; }
 
-// ══════════════════════════════════════════════════════════
-// SECTION L — ANIMATION LOOP
-// ══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// MAIN ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════
 function mainLoop(timestamp) {
   const dt = Math.min((timestamp - sim.lastRAF) / 1000, 0.05);
   sim.lastRAF = timestamp;
+
   if (sim.running) {
     sim.elapsed       += dt;
     sim.analysisTimer += dt;
@@ -683,45 +1137,51 @@ function mainLoop(timestamp) {
     }
   }
 
-  // grid
+  // Grid canvas
   drawGrid();
-  const color = (sim.running && COLORS[sim.trigger]) ? COLORS[sim.trigger] : '#1e4a7a';
-  const activeSet = sim.running ? nearestSensors(sim.target.gx, sim.target.gy, 5) : new Set();
+  const color = (sim.running && NEON[sim.trigger]) ? NEON[sim.trigger] : '#1e4a7a';
+  const activeSet = sim.running ? nearestSensors(sim.target.gx, sim.target.gy, 8) : new Set();
   drawSensors(activeSet, color);
-  if (sim.running) { drawTrail(); drawEstimated(); drawTarget(); }
+  if (sim.running) {
+    drawTrail();
+    drawEstimated();
+    drawTarget();
+    drawSensorTDOALabels(activeSet, color);
+  }
 
-  // mini canvases — resize to CSS layout size
-  ['wf-canvas','fft-canvas','pos-canvas'].forEach(id => {
-    const c = document.getElementById(id);
-    if (c.offsetWidth > 0 && (c.width !== c.offsetWidth || c.height !== c.offsetHeight)) {
-      c.width = c.offsetWidth; c.height = c.offsetHeight;
+  // Mini canvases — auto-resize to CSS layout dimensions
+  ['wf-canvas','fft-canvas','pos-canvas','tdoa-canvas'].forEach(id => {
+    const cv = el(id);
+    if (cv && cv.offsetWidth > 0 && (cv.width !== cv.offsetWidth || cv.height !== cv.offsetHeight)) {
+      cv.width = cv.offsetWidth; cv.height = cv.offsetHeight;
     }
   });
   renderWaveform();
   renderFFT();
   renderPositionChart();
+  renderTDOAChart();
 
   requestAnimationFrame(mainLoop);
 }
 
-// ══════════════════════════════════════════════════════════
-// SECTION M — PUBLIC CONTROL FUNCTIONS
-// ══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// PUBLIC CONTROL FUNCTIONS
+// ═══════════════════════════════════════════════════════════
 window.startSimulation = function(trigger) {
   sim.running = true; sim.trigger = trigger;
   sim.elapsed = 0; sim.analysisTimer = sim.ANALYSIS_PERIOD;
   sim.targetTrail = []; sim.posHistory = [];
-  sim.fftData = null; sim.estimated = { gx: -1, gy: -1 };
-  sim.lastResult = null; sim.wfTime = 0; sim.animalBurst = 0;
-  sim.target.gx = 2 + Math.random() * (COLS - 4);
-  sim.target.gy = 2 + Math.random() * (ROWS - 4);
+  sim.fftData = null; sim.tdoaData = null;
+  sim.estimated = { gx:-1, gy:-1 }; sim.lastResult = null;
+  sim.wfTime = 0; sim.animalBurst = 0;
+  sim.target.gx = 2 + Math.random() * (COLS-4);
+  sim.target.gy = 2 + Math.random() * (ROWS-4);
   const angle = Math.random() * 6.283;
   sim.target.vx = Math.cos(angle); sim.target.vy = Math.sin(angle);
   sim.target.perturbTimer = 0;
-  ['btn-human','btn-vehicle','btn-animal'].forEach(id =>
-    document.getElementById(id).classList.remove('active-trigger'));
-  document.getElementById(`btn-${trigger}`).classList.add('active-trigger');
-  const labels = { human: 'Human Footsteps', vehicle: 'Vehicle', animal: 'Animal' };
+  ['btn-human','btn-vehicle','btn-animal'].forEach(id => el(id).classList.remove('active-trigger'));
+  el(`btn-${trigger}`).classList.add('active-trigger');
+  const labels = { human:'Human Footsteps', vehicle:'Vehicle', animal:'Animal' };
   setStatus(`Tracking ${labels[trigger]}…`);
   appendLog(`▶ Started: ${labels[trigger]}`, 'log-success');
 };
@@ -730,33 +1190,34 @@ window.stopSimulation = function() {
   sim.running = false;
   setStatus('Paused — press a trigger to resume');
   appendLog('⏹ Paused', 'log-warn');
-  ['btn-human','btn-vehicle','btn-animal'].forEach(id =>
-    document.getElementById(id).classList.remove('active-trigger'));
+  ['btn-human','btn-vehicle','btn-animal'].forEach(id => el(id).classList.remove('active-trigger'));
 };
 
 window.resetSimulation = function() {
   sim.running = false; sim.trigger = null; sim.elapsed = 0;
   sim.analysisTimer = 0; sim.targetTrail = []; sim.posHistory = [];
-  sim.fftData = null; sim.estimated = { gx: -1, gy: -1 };
-  sim.lastResult = null; sim.wfBuf.fill(0);
-  document.getElementById('classification-section').classList.add('hidden');
-  ['metric-freq','metric-conf','metric-x','metric-y'].forEach(id => {
-    document.getElementById(id).innerHTML = '—';
-    document.getElementById(id).style.color = '';
+  sim.fftData = null; sim.tdoaData = null;
+  sim.estimated = { gx:-1, gy:-1 }; sim.lastResult = null; sim.wfBuf.fill(0);
+  el('classification-section').classList.add('hidden');
+  ['metric-freq','metric-conf','metric-x','metric-y',
+   'metric-snr','metric-err','metric-lambda','metric-period'].forEach(id => {
+    el(id).innerHTML = '—'; el(id).style.color = '';
+  });
+  ['iv-decay','iv-energy','iv-wave','iv-ref','iv-tmax',
+   'iv-grid','iv-est','iv-err','iv-snr','iv-freq','iv-fs'].forEach(id => {
+    if(el(id)) el(id).textContent = el(id).textContent.replace(/=.*/,'= —').replace(/→.*/,'→ —');
   });
   setStatus('Idle — select a trigger to begin');
-  ['btn-human','btn-vehicle','btn-animal'].forEach(id =>
-    document.getElementById(id).classList.remove('active-trigger'));
-  document.getElementById('event-log').innerHTML =
+  ['btn-human','btn-vehicle','btn-animal'].forEach(id => el(id).classList.remove('active-trigger'));
+  el('event-log').innerHTML =
     '<span class="log-entry log-dim">↺ Canvas reset.</span><br/>' +
     '<span class="log-entry log-info">▶ 64 perimeter sensors online.</span><br/>' +
     '<span class="log-entry log-dim">▶ Awaiting seismic trigger…</span><br/>';
 };
 
-// Exposed for Python to call when ready
 window.onPyReady = function() {
-  document.getElementById('loading-overlay').style.display = 'none';
-  document.getElementById('app-container').style.display  = 'flex';
+  el('loading-overlay').style.display = 'none';
+  el('app-container').style.display   = 'flex';
   sim.lastRAF = performance.now();
   requestAnimationFrame(mainLoop);
   appendLog('▶ Pyodide runtime ready. 64 sensors online.', 'log-success');
@@ -765,35 +1226,30 @@ window.onPyReady = function() {
 // System clock
 setInterval(() => {
   const n = new Date();
-  document.getElementById('system-clock').textContent =
+  el('system-clock').textContent =
     `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
 }, 1000);
 
-// Hover coords
+// Hover coordinates
 gridCanvas.addEventListener('mousemove', e => {
   const r  = gridCanvas.getBoundingClientRect();
   const sx = gridCanvas.width  / r.width;
   const sy = gridCanvas.height / r.height;
   const gx = Math.floor((e.clientX - r.left) * sx / CELL);
   const gy = Math.floor((e.clientY - r.top)  * sy / CELL);
-  const el = document.getElementById('canvas-coords-display');
-  el.textContent = (gx >= 0 && gx < COLS && gy >= 0 && gy < ROWS)
-    ? `Grid (${gx},${gy})  →  Field (${gx*5}m, ${gy*5}m)`
+  const disp = el('canvas-coords-display');
+  disp.textContent = (gx >= 0 && gx < COLS && gy >= 0 && gy < ROWS)
+    ? `Grid (${gx},${gy})  →  Field (${gx*CELL_M}m, ${gy*CELL_M}m)  |  dist to target: ${(Math.sqrt((gx-sim.target.gx)**2+(gy-sim.target.gy)**2)*CELL_M).toFixed(1)}m`
     : 'Hover for coordinates';
 });
 </script>
 
 
-<!-- ═══════════════════════════════════════════════════════════
-     PYSCRIPT v3.0 — DSP Simulation Engine
-     ─────────────────────────────────────────────────────────
-     Responsibilities:
-       1. Signal Generation  (synthetic noisy waveforms)
-       2. FFT Analysis       (bandpass filtering + spectrum)
-       3. Classification     (rule-based from dominant freq)
-       4. TDOA Triangulation (vectorised grid-search)
-       5. py_analyse_js()    exposed to JS via create_proxy
-════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════
+     PYSCRIPT v3.1 — DSP Simulation Engine
+     ─────────────────────────────────────────────────────
+     Enhanced:  sensor_tdoas + snr_db + signal_energy in response
+═══════════════════════════════════════════════════════ -->
 <script type="py">
 import js
 import json
@@ -801,163 +1257,120 @@ import math
 import numpy as np
 from pyodide.ffi import create_proxy
 
-# ── Grid configuration (must match JS constants) ─────────
-COLS = 20
-ROWS = 14
-CELL_M = 5  # metres per cell
+COLS   = 20
+ROWS   = 14
+CELL_M = 5
 
-# ── Build perimeter sensor array ─────────────────────────
 def get_perimeter_sensors():
     s = []
-    for x in range(COLS):     s.append((x, 0))
-    for x in range(COLS):     s.append((x, ROWS - 1))
+    for x in range(COLS):      s.append((x, 0))
+    for x in range(COLS):      s.append((x, ROWS - 1))
     for y in range(1, ROWS-1): s.append((0, y))
     for y in range(1, ROWS-1): s.append((COLS-1, y))
     return s
 
 SENSORS = get_perimeter_sensors()  # 64 sensors
 
-# ── Signal generation ─────────────────────────────────────
 def generate_signal(trigger_type, src_gx, src_gy, noise, wave_speed, sample_rate):
-    """Generate a synthetic seismic waveform at the nearest sensor."""
-    T   = 1.0                                     # 1-second window
-    N   = int(sample_rate * T)
-    t   = np.linspace(0, T, N, endpoint=False)
-
-    # Distance decay from source to nearest sensor
-    dists = [math.sqrt((sx - src_gx)**2 + (sy - src_gy)**2) for sx, sy in SENSORS]
+    T  = 1.0
+    N  = int(sample_rate * T)
+    t  = np.linspace(0, T, N, endpoint=False)
+    dists = [math.sqrt((sx-src_gx)**2 + (sy-src_gy)**2) for sx, sy in SENSORS]
     d_min = min(dists)
     decay = math.exp(-d_min * 0.12)
-
     if trigger_type == 'human':
         cadence = np.abs(np.sin(math.pi * 1.8 * t)) ** 3
-        sig = decay * (cadence * np.sin(2*math.pi*38*t)*1.3
-                      + 0.3 * np.sin(2*math.pi*2.1*t))
+        sig = decay * (cadence * np.sin(2*math.pi*38*t)*1.3 + 0.3*np.sin(2*math.pi*2.1*t))
     elif trigger_type == 'vehicle':
         fm  = 1 + 0.02 * np.sin(2*math.pi*0.3*t)
-        sig = decay * (1.4 * np.sin(2*math.pi*28*fm*t)
-                      + 0.6 * np.sin(2*math.pi*56*t)
-                      + 0.3 * np.sin(2*math.pi*84*t))
+        sig = decay * (1.4*np.sin(2*math.pi*28*fm*t) + 0.6*np.sin(2*math.pi*56*t) + 0.3*np.sin(2*math.pi*84*t))
     elif trigger_type == 'animal':
         burst_times = np.random.choice(N, size=8, replace=False)
         env = np.zeros(N)
         for bt in burst_times:
-            decay_arr = np.exp(-np.abs(t - t[bt]) * 15)
-            env += decay_arr
+            env += np.exp(-np.abs(t - t[bt]) * 15)
         sig = decay * env * np.sin(2*math.pi*15*t) * 0.9
     else:
         sig = np.zeros(N)
+    noise_arr = np.random.normal(0, noise, N)
+    sig += noise_arr
+    signal_energy  = float(np.mean(sig**2))
+    signal_power   = float(np.mean((sig - noise_arr)**2))
+    noise_power    = float(noise**2)
+    snr_db = float(10 * np.log10(signal_power / (noise_power + 1e-12)))
+    return sig, t, sample_rate, snr_db, signal_energy
 
-    sig += np.random.normal(0, noise, N)
-    return sig, t, sample_rate
-
-# ── FFT analysis ──────────────────────────────────────────
 def fft_analysis(sig, sample_rate, trigger_type):
-    """Compute FFT and return normalised spectrum."""
-    N    = len(sig)
+    N      = len(sig)
     window = np.hanning(N)
-    fft  = np.abs(np.fft.rfft(sig * window))
-    freq = np.fft.rfftfreq(N, d=1/sample_rate)
-
-    # Passband for display
-    bands = {
-        'human':   (30, 50),
-        'vehicle': (20, 40),
-        'animal':  (8,  20),
-    }
+    fft    = np.abs(np.fft.rfft(sig * window))
+    freq   = np.fft.rfftfreq(N, d=1/sample_rate)
+    bands  = {'human': (30, 50), 'vehicle': (20, 40), 'animal': (8, 20)}
     pass_lo, pass_hi = bands.get(trigger_type, (10, 80))
-
-    # Crop to 0–120 Hz for display
     mask = freq <= 120
-    freq = freq[mask]
-    fft  = fft[mask]
-    if fft.max() > 0:
-        fft = fft / fft.max()
-
-    # Dominant frequency in passband
+    freq = freq[mask]; fft = fft[mask]
+    if fft.max() > 0: fft = fft / fft.max()
     pb_mask = (freq >= pass_lo) & (freq <= pass_hi)
     if pb_mask.any():
         dom_freq = float(freq[pb_mask][np.argmax(fft[pb_mask])])
     else:
         dom_freq = float(freq[np.argmax(fft)]) if len(freq) > 0 else 0.0
-
     return freq.tolist(), fft.tolist(), dom_freq, pass_lo, pass_hi
 
-# ── Classification ────────────────────────────────────────
 def classify_signal(dominant_freq, trigger_type):
-    """
-    Rule-based classification from dominant frequency.
-    Returns: label, color, icon, confidence (0–1)
-    """
     rules = [
-        {'label': 'Human Footsteps', 'icon': '🚶', 'color': '#00ff88',
-         'lo': 30, 'hi': 55, 'true': 'human'},
-        {'label': 'Vehicle Engine',  'icon': '🚗', 'color': '#ff6b35',
-         'lo': 18, 'hi': 38, 'true': 'vehicle'},
-        {'label': 'Animal Activity', 'icon': '🐾', 'color': '#ffd700',
-         'lo': 5,  'hi': 22, 'true': 'animal'},
+        {'label':'Human Footsteps', 'icon':'🚶', 'color':'#00ffaa', 'lo':30, 'hi':55, 'true':'human'},
+        {'label':'Vehicle Engine',  'icon':'🚗', 'color':'#ff5500', 'lo':18, 'hi':38, 'true':'vehicle'},
+        {'label':'Animal Activity', 'icon':'🐾', 'color':'#ffe600', 'lo':5,  'hi':22, 'true':'animal'},
     ]
-    best_cls   = rules[0]
-    best_score = 0.0
+    best_cls = rules[0]; best_score = 0.0
     for rule in rules:
         if rule['lo'] <= dominant_freq <= rule['hi']:
             mid    = (rule['lo'] + rule['hi']) / 2
             spread = (rule['hi'] - rule['lo']) / 2
             score  = 1.0 - min(abs(dominant_freq - mid) / spread, 1.0)
-            if score > best_score:
-                best_score = score
-                best_cls   = rule
-
-    # Bonus if trigger type matches
+            if score > best_score: best_score = score; best_cls = rule
     if trigger_type and best_cls['true'] == trigger_type:
         best_score = min(1.0, best_score * 1.15)
+    return best_cls['label'], best_cls['color'], best_cls['icon'], max(0.2, best_score)
 
-    confidence = max(0.2, best_score)
-    return best_cls['label'], best_cls['color'], best_cls['icon'], confidence
-
-# ── TDOA Position Estimation ──────────────────────────────
 def tdoa_estimate(src_gx, src_gy, noise, wave_speed, sample_rate):
-    """
-    Simulate TDOA grid-search to estimate intruder position.
-    Returns estimated (est_gx, est_gy) as integers.
-    """
     xs = np.array([s[0] for s in SENSORS], dtype=float)
     ys = np.array([s[1] for s in SENSORS], dtype=float)
+    true_dists  = np.sqrt((xs - src_gx)**2 + (ys - src_gy)**2) * CELL_M
+    dt          = 1.0 / sample_rate
+    true_times  = true_dists / (wave_speed + 1e-9)
+    meas_times  = true_times + np.random.normal(0, noise * dt * 2, len(SENSORS))
+    ref_idx     = int(np.argmin(true_dists))
+    tdoas       = meas_times - meas_times[ref_idx]
 
-    # True distances (grid cells → metres)
-    true_dists = np.sqrt((xs - src_gx)**2 + (ys - src_gy)**2) * CELL_M
+    # Build TDOA list (8 nearest sensors) for JS chart
+    order = np.argsort(true_dists)[:8]
+    sensor_tdoas = []
+    for idx in order:
+        sensor_tdoas.append({
+            'gx':             int(SENSORS[idx][0]),
+            'gy':             int(SENSORS[idx][1]),
+            'dist_m':         float(true_dists[idx]),
+            'travel_time_ms': float(true_times[idx] * 1000),
+            'tdoa_ms':        float(tdoas[idx] * 1000),
+            'isRef':          bool(idx == ref_idx),
+        })
 
-    # Simulated travel times + realistic noise
-    dt  = 1.0 / sample_rate
-    true_times = true_dists / (wave_speed + 1e-9)
-    meas_times = true_times + np.random.normal(0, noise * dt * 2, len(SENSORS))
-
-    # Reference sensor (nearest)
-    ref_idx = int(np.argmin(true_dists))
-    tdoas   = meas_times - meas_times[ref_idx]
-
-    # Grid search
-    best_score = 1e18
-    best_gx, best_gy = src_gx, src_gy
+    # Grid search — minimise sum of squared TDOA residuals
+    best_score = 1e18; best_gx, best_gy = src_gx, src_gy
     for gx in range(1, COLS - 1):
         for gy in range(1, ROWS - 1):
-            hyp_d = np.sqrt((xs - gx)**2 + (ys - gy)**2) * CELL_M
-            hyp_t = hyp_d / (wave_speed + 1e-9)
+            hyp_d    = np.sqrt((xs - gx)**2 + (ys - gy)**2) * CELL_M
+            hyp_t    = hyp_d / (wave_speed + 1e-9)
             hyp_tdoa = hyp_t - hyp_t[ref_idx]
-            score = float(np.sum((tdoas - hyp_tdoa)**2))
+            score    = float(np.sum((tdoas - hyp_tdoa)**2))
             if score < best_score:
-                best_score = score
-                best_gx, best_gy = gx, gy
+                best_score = score; best_gx, best_gy = gx, gy
+    return int(best_gx), int(best_gy), sensor_tdoas
 
-    return int(best_gx), int(best_gy)
-
-# ── Main analysis function (exposed to JS) ────────────────
 def py_analyse_js(trigger_type_js, src_gx_js, src_gy_js,
                   noise_js, wave_speed_js, sample_rate_js):
-    """
-    Called by JS every 2 seconds.
-    Returns a JSON string with all analysis results.
-    """
     try:
         trigger     = str(trigger_type_js)
         src_gx      = int(src_gx_js)
@@ -966,21 +1379,16 @@ def py_analyse_js(trigger_type_js, src_gx_js, src_gy_js,
         wave_speed  = float(wave_speed_js)
         sample_rate = float(sample_rate_js)
 
-        # Generate signal
-        sig, t_arr, fs = generate_signal(trigger, src_gx, src_gy, noise, wave_speed, sample_rate)
-
-        # FFT
+        sig, t_arr, fs, snr_db, signal_energy = generate_signal(
+            trigger, src_gx, src_gy, noise, wave_speed, sample_rate)
         freqs, mags, dom_freq, pass_lo, pass_hi = fft_analysis(sig, fs, trigger)
-
-        # Classification
         label, color, icon, conf = classify_signal(dom_freq, trigger)
+        est_gx, est_gy, sensor_tdoas = tdoa_estimate(
+            src_gx, src_gy, noise, wave_speed, sample_rate)
 
-        # TDOA estimate
-        est_gx, est_gy = tdoa_estimate(src_gx, src_gy, noise, wave_speed, sample_rate)
-
-        result = {
-            'est_gx':       est_gx,
-            'est_gy':       est_gy,
+        return json.dumps({
+            'est_gx':        est_gx,
+            'est_gy':        est_gy,
             'dominant_freq': dom_freq,
             'confidence':    conf,
             'label':         label,
@@ -990,23 +1398,21 @@ def py_analyse_js(trigger_type_js, src_gx_js, src_gy_js,
             'fft_mag':       mags,
             'pass_lo':       pass_lo,
             'pass_hi':       pass_hi,
-        }
-        return json.dumps(result)
-
+            'snr_db':        snr_db,
+            'signal_energy': signal_energy,
+            'sensor_tdoas':  sensor_tdoas,
+        })
     except Exception as ex:
         return json.dumps({
-            'est_gx': src_gx_js, 'est_gy': src_gy_js,
-            'dominant_freq': 0, 'confidence': 0,
-            'label': 'Error', 'color': '#ff0000', 'icon': '✗',
-            'fft_freqs': [], 'fft_mag': [],
-            'pass_lo': 0, 'pass_hi': 0,
+            'est_gx':0,'est_gy':0,'dominant_freq':0,'confidence':0,
+            'label':'Error','color':'#ff2255','icon':'✗',
+            'fft_freqs':[],'fft_mag':[],'pass_lo':0,'pass_hi':0,
+            'snr_db':0,'signal_energy':0,'sensor_tdoas':[],
             'error': str(ex),
         })
 
-# Expose to JavaScript
 js.window.pyAnalyse = create_proxy(py_analyse_js)
 
-# ── Initialisation ────────────────────────────────────────
 def _on_ready():
     js.window.onPyReady()
 

@@ -861,3 +861,47 @@ html, body {
 .sensor-stat-label { color: var(--text-dim); }
 .sensor-stat-value { color: var(--text-primary); }
 
+/* ── v3.1 additions ──────────────────────────────────── */
+
+/* 8-card metrics: two separate 4-col rows */
+.metrics-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  margin-top: 5px;
+}
+
+/* Suggestions footer strip */
+#suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 6px 14px 7px;
+  background: #04070d;
+  border-top: 1px solid #0e1e32;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: #2a4060;
+  flex-shrink: 0;
+}
+#suggestions span { white-space: nowrap; }
+#suggestions b    { color: #3a6080; }
+
+/* Reset button variant */
+.btn-reset-v3 {
+  flex: 1;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid rgba(0,150,200,0.3);
+  border-radius: 4px;
+  color: #4a7090;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: border-color .2s, color .2s;
+}
+.btn-reset-v3:hover {
+  border-color: rgba(0,229,255,0.5);
+  color: #00e5ff;
+}
+
