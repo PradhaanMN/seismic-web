@@ -1,0 +1,15 @@
+# ─────────────────────────────────────────────────────────
+# pyscript.toml — PyScript Runtime Configuration
+# ─────────────────────────────────────────────────────────
+# This file is referenced by the <script type="py"> tag in
+# index.html via:  config="pyscript.toml"
+#
+# PyScript loads Pyodide (WebAssembly Python) and installs
+# the listed packages from the PyPI/Pyodide package index.
+#
+# Packages needed:
+#   numpy      — FFT, signal generation, vectorised maths
+#   matplotlib — Waveform & spectrum plots (Agg backend → PNG)
+# ─────────────────────────────────────────────────────────
+
+packages = ["numpy", "matplotlib"]

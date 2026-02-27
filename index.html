@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seismic Web — Bio-Inspired Perimeter Intrusion Detection</title>
+
+  <!-- ── Stylesheets ────────────────────────────────────── -->
+  <link rel="stylesheet" href="styles.css" />
+  <!-- PyScript CSS (minimal reset for pyscript elements) -->
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.11.1/core.css" />
+
+  <!-- ── PyScript Core ─────────────────────────────────── -->
+  <!-- Load PyScript as a module; it scans for <script type="py"> tags -->
+  <script type="module" src="https://pyscript.net/releases/2024.11.1/core.js"></script>
+
+  <!-- ── PyScript Package Configuration ───────────────── -->
+  <!--
+    Declares the Python packages to pre-install from PyPI via Pyodide.
+    numpy  → FFT, signal generation, vectorised maths
+    matplotlib → waveform + spectrum plots (rendered to PNG → base64)
+  -->
+  <py-config type="toml">
+    packages = ["numpy", "matplotlib"]
+  </py-config>
+
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     LOADING OVERLAY
+     Shown while Pyodide/PyScript bootstraps in the browser.
+     Hidden by Python once the runtime is ready.
+════════════════════════════════════════════════════════════ -->
+<div id="loading-overlay">
+  <div class="loader-title">⬡ SEISMIC WEB</div>
+  <div class="loader-subtitle">BIO-INSPIRED PERIMETER INTRUSION DETECTION</div>
+  <div class="loader-bar-wrap">
+    <div class="loader-bar"></div>
+  </div>
+  <div class="loader-status">▶ INITIALISING PYODIDE RUNTIME…</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN APPLICATION CONTAINER
+     Hidden until PyScript is ready; then flex-displayed.
+════════════════════════════════════════════════════════════ -->
+<div id="app-container">
+
+  <!-- ── Header Bar ─────────────────────────────────────── -->
+  <header id="header">
+    <div class="header-brand">
+      <div class="header-icon">🕸️</div>
+      <div>
+        <div class="header-title">SEISMIC WEB</div>
+        <div class="header-sub">BIO-INSPIRED PERIMETER INTRUSION DETECTION SYSTEM · DSP ENGINE v2.0</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <span class="meta-pill pill-green">32 SENSORS ACTIVE</span>
+      <span class="meta-pill pill-blue">FFT · TDOA · CLASSIFY</span>
+      <span class="meta-pill pill-orange">GEOPHONE GRID 20×14</span>
+      <span id="system-clock">--:--:--</span>
+    </div>
+  </header>
+
+  <!-- ── Main Two-Column Layout ─────────────────────────── -->
+  <div id="main-layout">
+
+    <!-- ╔══════════════════════════════════╗
+         ║       LEFT — CONTROL PANEL       ║
+         ╚══════════════════════════════════╝ -->
+    <aside id="control-panel">
+
+      <!-- Section: Trigger Source -->
+      <div class="panel-section">
+        <div class="panel-label">Trigger Source</div>
+
+        <!-- Human Footsteps Button -->
+        <button id="btn-human"
+                class="trigger-btn btn-human"
+                py-click="simulate_human"
+                title="Simulate human footstep vibrations (1–5 Hz cadence, ~38 Hz body resonance)">
+          <span class="btn-icon">🚶</span>
+          <span class="btn-text">
+            <span class="btn-title">Human Footsteps</span>
+            <span class="btn-freq">1–50 Hz · rhythmic · low-energy</span>
+          </span>
+        </button>
+
+        <!-- Vehicle Button -->
+        <button id="btn-vehicle"
+                class="trigger-btn btn-vehicle"
+                py-click="simulate_vehicle"
+                title="Simulate vehicle engine + tyre rumble (15–80 Hz continuous)">
+          <span class="btn-icon">🚗</span>
+          <span class="btn-text">
+            <span class="btn-title">Vehicle</span>
+            <span class="btn-freq">15–80 Hz · continuous · high-energy</span>
+          </span>
+        </button>
+
+        <!-- Animal Button -->
+        <button id="btn-animal"
+                class="trigger-btn btn-animal"
+                py-click="simulate_animal"
+                title="Simulate small-to-medium animal movement (10–20 Hz erratic bursts)">
+          <span class="btn-icon">🐾</span>
+          <span class="btn-text">
+            <span class="btn-title">Animal</span>
+            <span class="btn-freq">10–25 Hz · erratic · intermittent</span>
+          </span>
+        </button>
+
+        <!-- Reset Button -->
+        <button id="btn-reset"
+                class="btn-reset"
+                py-click="reset_simulation">
+          ↺ Reset Canvas
+        </button>
+      </div>
+
+      <!-- Section: System Status -->
+      <div class="panel-section">
+        <div class="panel-label">System Status</div>
+        <div id="status-badge">
+          <div id="status-dot" class="dot-idle"></div>
+          <div id="status-text">Idle — awaiting trigger input</div>
+        </div>
+      </div>
+
+      <!-- Section: Detection Metrics -->
+      <div class="panel-section">
+        <div class="panel-label">Detection Metrics</div>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Dom. Freq</div>
+            <div class="metric-value" id="metric-freq">
+              — <span class="metric-unit">Hz</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Confidence</div>
+            <div class="metric-value" id="metric-conf">
+              — <span class="metric-unit">%</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Grid X</div>
+            <div class="metric-value" id="metric-x">—</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Grid Y</div>
+            <div class="metric-value" id="metric-y">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Sensor Grid Info -->
+      <div class="panel-section">
+        <div class="panel-label">Grid Configuration</div>
+        <div class="sensor-stat"><span class="sensor-stat-label">Grid Size</span><span class="sensor-stat-value">20 × 14 cells</span></div>
+        <div class="sensor-stat"><span class="sensor-stat-label">Sensor Count</span><span class="sensor-stat-value">32 geophones</span></div>
+        <div class="sensor-stat"><span class="sensor-stat-label">Cell Resolution</span><span class="sensor-stat-value">5 m / cell</span></div>
+        <div class="sensor-stat"><span class="sensor-stat-label">Wave Speed</span><span class="sensor-stat-value">~50 m/s</span></div>
+        <div class="sensor-stat"><span class="sensor-stat-label">Sample Rate</span><span class="sensor-stat-value">200 Hz</span></div>
+        <div class="sensor-stat"><span class="sensor-stat-label">FFT Size</span><span class="sensor-stat-value">1024 pts</span></div>
+      </div>
+
+      <!-- Section: Event Log -->
+      <div class="panel-section">
+        <div class="panel-label">Event Log</div>
+        <div id="event-log">
+          <span class="log-entry log-dim">▶ System boot complete.</span><br/>
+          <span class="log-entry log-info">▶ 32 perimeter sensors online.</span><br/>
+          <span class="log-entry log-dim">▶ Awaiting seismic trigger…</span><br/>
+        </div>
+      </div>
+
+    </aside><!-- /control-panel -->
+
+    <!-- ╔══════════════════════════════════╗
+         ║    RIGHT — CANVAS + ANALYSIS     ║
+         ╚══════════════════════════════════╝ -->
+    <main id="canvas-area">
+
+      <!-- Canvas Toolbar -->
+      <div class="canvas-header">
+        <span class="canvas-title">⬡ Geophone Field Grid — Live Simulation</span>
+        <span class="canvas-coords" id="canvas-coords">Hover over grid for coordinates</span>
+      </div>
+
+      <!-- HTML5 Canvas -->
+      <div class="canvas-wrap">
+        <!--
+          sim-canvas: The core 2D rendering surface.
+          680 × 476 px  →  COLS=20, ROWS=14, CELL=34px, MARGIN=0
+          All drawing is done via JavaScript (Grid, Sensors, Waves, Alerts).
+          Python feeds computed values (source coords, color, label) to JS.
+        -->
+        <canvas id="sim-canvas" width="700" height="490"></canvas>
+
+        <!-- Alert Popup that appears near the detected point -->
+        <div id="alert-popup">
+          <div id="alert-popup-title">⚠ INTRUSION DETECTED</div>
+          <div id="alert-popup-body">—</div>
+        </div>
+      </div>
+
+      <!-- ── Signal Analysis Panel ────────────────────────── -->
+      <div id="analysis-section">
+        <div class="analysis-header">
+          <span class="analysis-title">Signal Analysis — FFT Pipeline</span>
+          <span id="analysis-meta" class="analysis-meta">No analysis yet</span>
+        </div>
+
+        <!-- Matplotlib figure injected here as base64 PNG -->
+        <div id="waveform-container">
+          <div id="waveform-placeholder">
+            Select a trigger to run FFT analysis &amp; see the signal pipeline…
+          </div>
+          <img id="waveform-img" alt="Waveform Analysis Plot" />
+        </div>
+
+        <!-- Classification result badge (shown after analysis) -->
+        <div id="classification-result">
+          <span class="result-icon" id="result-icon">—</span>
+          <div>
+            <div class="result-label" id="result-label">—</div>
+            <div class="result-details" id="result-details">—</div>
+          </div>
+          <div class="result-confidence">
+            <span class="confidence-pct" id="result-conf-pct">—</span>
+            <span class="confidence-label">CONFIDENCE</span>
+            <div class="confidence-bar-wrap">
+              <div class="confidence-bar-fill" id="conf-bar" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /analysis-section -->
+
+    </main><!-- /canvas-area -->
+  </div><!-- /main-layout -->
+</div><!-- /app-container -->
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT — Canvas Rendering & Animation Engine
+     All drawing logic lives here. Python sends data via js.*
+     calls; JS handles the render loop at 60 fps.
+════════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+// ── Grid Constants ────────────────────────────────────────
+const COLS      = 20;       // number of grid columns
+const ROWS      = 14;       // number of grid rows
+const CELL      = 34;       // pixels per cell
+const MARGIN_X  = 10;       // left/right canvas margin (px)
+const MARGIN_Y  = 10;       // top/bottom canvas margin (px)
+const STEP      = 2;        // sensor placement step (every N cells on perimeter)
+const WAVE_SPD  = 50;       // wave propagation speed (cells/s, visual only)
+const FPS_LIMIT = 60;
+
+// ── Canvas Setup ──────────────────────────────────────────
+const canvas  = document.getElementById('sim-canvas');
+const ctx     = canvas.getContext('2d');
+
+// Verify computed canvas size matches constants
+// canvas.width  = COLS * CELL + 2 * MARGIN_X = 20*34+20 = 700
+// canvas.height = ROWS * CELL + 2 * MARGIN_Y = 14*34+20 = 490
+
+// ── Sensor Position Generator ─────────────────────────────
+/**
+ * Returns an array of {x, y} objects for all perimeter sensors.
+ * Mirrors the exact Python get_perimeter_sensors() function.
+ */
+function getSensors() {
+  const s = [];
+  // Top edge (y=0), including corners
+  for (let x = 0; x < COLS; x += STEP) s.push({ x, y: 0 });
+  // Bottom edge (y=ROWS-1), including corners
+  for (let x = 0; x < COLS; x += STEP) s.push({ x, y: ROWS - 1 });
+  // Left edge, excluding corners
+  for (let y = STEP; y < ROWS - 1; y += STEP) s.push({ x: 0, y });
+  // Right edge, excluding corners
+  for (let y = STEP; y < ROWS - 1; y += STEP) s.push({ x: COLS - 1, y });
+  return s;
+}
+
+const SENSORS = getSensors(); // cached sensor list
+
+// ── Coordinate Helpers ────────────────────────────────────
+/** Convert grid cell (gx, gy) to canvas pixel (cx, cy) at cell centre */
+function toPixel(gx, gy) {
+  return {
+    cx: MARGIN_X + gx * CELL + CELL / 2,
+    cy: MARGIN_Y + gy * CELL + CELL / 2,
+  };
+}
+
+/** Convert canvas pixel to grid cell (rounded) */
+function toGrid(px, py) {
+  return {
+    gx: Math.floor((px - MARGIN_X) / CELL),
+    gy: Math.floor((py - MARGIN_Y) / CELL),
+  };
+}
+
+// ── Animation State ───────────────────────────────────────
+let animState = {
+  running:     false,
+  waves:       [],    // active expanding waves
+  alertGx:     -1,    // detected grid X
+  alertGy:     -1,    // detected grid Y
+  alertColor:  '#ff3b5c',
+  alertAlpha:  0,     // 0-1 flash alpha
+  alertFlash:  0,     // flash timer
+  sourceGx:    -1,    // true source X
+  sourceGy:    -1,    // true source Y
+  sourceAlpha: 0,
+  rafId:       null,
+};
+
+// ── Draw the Static Grid ──────────────────────────────────
+/**
+ * Draws grid lines, cell backgrounds, field labels.
+ */
+function drawGrid() {
+  // Background fill
+  ctx.fillStyle = '#040810';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Subtle radial vignette
+  const grad = ctx.createRadialGradient(
+    canvas.width/2, canvas.height/2, 40,
+    canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)*0.7
+  );
+  grad.addColorStop(0,   'rgba(10,20,45,0)');
+  grad.addColorStop(1,   'rgba(0,2,8,0.7)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(30,60,100,0.45)';
+  ctx.lineWidth = 0.5;
+
+  for (let c = 0; c <= COLS; c++) {
+    const x = MARGIN_X + c * CELL;
+    ctx.beginPath();
+    ctx.moveTo(x, MARGIN_Y);
+    ctx.lineTo(x, MARGIN_Y + ROWS * CELL);
+    ctx.stroke();
+  }
+  for (let r = 0; r <= ROWS; r++) {
+    const y = MARGIN_Y + r * CELL;
+    ctx.beginPath();
+    ctx.moveTo(MARGIN_X, y);
+    ctx.lineTo(MARGIN_X + COLS * CELL, y);
+    ctx.stroke();
+  }
+
+  // Crosshair dots at intersections (subtle)
+  ctx.fillStyle = 'rgba(30,60,100,0.6)';
+  for (let c = 0; c <= COLS; c++) {
+    for (let r = 0; r <= ROWS; r++) {
+      ctx.beginPath();
+      ctx.arc(MARGIN_X + c * CELL, MARGIN_Y + r * CELL, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Field label in centre
+  ctx.font = '800 10px "Orbitron", monospace';
+  ctx.fillStyle = 'rgba(30,60,100,0.25)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('GEOPHONE FIELD ARRAY', canvas.width / 2, canvas.height / 2 - 8);
+  ctx.font = '10px "Share Tech Mono", monospace';
+  ctx.fillText('100m × 70m  |  5m/cell resolution', canvas.width / 2, canvas.height / 2 + 10);
+  ctx.textAlign = 'left';
+}
+
+// ── Draw Perimeter Sensors ────────────────────────────────
+/**
+ * Renders all 32 geophone sensors on the perimeter.
+ * Active sensors pulse; default sensors are dim blue dots.
+ */
+function drawSensors(activeSensorIndices = [], color = '#00ff88') {
+  SENSORS.forEach((s, i) => {
+    const { cx, cy } = toPixel(s.x, s.y);
+    const isActive = activeSensorIndices.includes(i);
+
+    if (isActive) {
+      // Outer glow ring
+      const grd = ctx.createRadialGradient(cx, cy, 2, cx, cy, 14);
+      grd.addColorStop(0, color + 'aa');
+      grd.addColorStop(1, color + '00');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Sensor body
+    ctx.beginPath();
+    ctx.arc(cx, cy, isActive ? 6 : 4, 0, Math.PI * 2);
+    ctx.fillStyle = isActive ? color : '#1e4a7a';
+    ctx.fill();
+
+    // Sensor outline ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, isActive ? 9 : 6, 0, Math.PI * 2);
+    ctx.strokeStyle = isActive ? color + 'aa' : 'rgba(30,90,140,0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Tiny sensor ID label
+    ctx.font = '6px "Share Tech Mono"';
+    ctx.fillStyle = isActive ? color : 'rgba(60,100,160,0.7)';
+    ctx.textAlign = 'center';
+    ctx.fillText(`S${String(i).padStart(2,'0')}`, cx, cy + 15);
+    ctx.textAlign = 'left';
+  });
+}
+
+// ── Draw Expanding Seismic Wave ───────────────────────────
+/**
+ * Each wave is an object: { cx, cy, radius, maxRadius, color, alpha }
+ * Called every animation frame; waves expand until they exceed maxRadius.
+ */
+function drawWaves() {
+  animState.waves.forEach(w => {
+    for (let ring = 0; ring < 3; ring++) {
+      const r = w.radius - ring * 18;
+      if (r <= 0) continue;
+      const alpha = w.alpha * (1 - ring * 0.3) * (1 - r / w.maxRadius);
+      ctx.beginPath();
+      ctx.arc(w.cx, w.cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = w.color + Math.round(alpha * 255).toString(16).padStart(2,'0');
+      ctx.lineWidth = ring === 0 ? 2 : 1;
+      ctx.stroke();
+    }
+  });
+}
+
+// ── Draw True Source Point ────────────────────────────────
+function drawSourcePoint() {
+  if (animState.sourceGx < 0) return;
+  const { cx, cy } = toPixel(animState.sourceGx, animState.sourceGy);
+  const alpha = animState.sourceAlpha;
+
+  // Crosshair lines
+  ctx.strokeStyle = `rgba(79,195,247,${alpha * 0.6})`;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(cx, MARGIN_Y); ctx.lineTo(cx, MARGIN_Y + ROWS * CELL); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(MARGIN_X, cy); ctx.lineTo(MARGIN_X + COLS * CELL, cy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Source marker (white dot)
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(79,195,247,${alpha * 0.8})`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Label
+  ctx.font = '9px "Share Tech Mono"';
+  ctx.fillStyle = `rgba(79,195,247,${alpha})`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`TRUE (${animState.sourceGx},${animState.sourceGy})`, cx + 14, cy - 6);
+}
+
+// ── Draw Detected Alert Marker ────────────────────────────
+function drawAlertMarker() {
+  if (animState.alertGx < 0) return;
+  const { cx, cy } = toPixel(animState.alertGx, animState.alertGy);
+  const a = animState.alertAlpha;
+  const color = animState.alertColor;
+
+  // Pulsing outer halo
+  for (let r = 28; r >= 8; r -= 8) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = color + Math.round(a * 0.15 * 255).toString(16).padStart(2,'0');
+    ctx.fill();
+  }
+
+  // Cross lines burst
+  const burst = a * 16;
+  ctx.strokeStyle = color + Math.round(a * 200).toString(16).padStart(2,'0');
+  ctx.lineWidth = 1.5;
+  [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]].forEach(([dx,dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(cx + dx*8,  cy + dy*8);
+    ctx.lineTo(cx + dx*burst, cy + dy*burst);
+    ctx.stroke();
+  });
+
+  // Central dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // Crosshair ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+  ctx.strokeStyle = color + 'cc';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Label
+  ctx.font = 'bold 9px "Share Tech Mono"';
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  ctx.fillText(`⚠ TDOA EST. (${animState.alertGx},${animState.alertGy})`, cx + 20, cy + 4);
+}
+
+// ── Main Render Loop ──────────────────────────────────────
+let lastTime = 0;
+
+function renderLoop(timestamp) {
+  const dt = (timestamp - lastTime) / 1000; // seconds since last frame
+  lastTime = timestamp;
+
+  // 1. Draw static base
+  drawGrid();
+  drawSensors([], '#1e4a7a');
+
+  // 2. Update & draw expanding waves
+  animState.waves = animState.waves.filter(w => w.radius < w.maxRadius);
+  animState.waves.forEach(w => { w.radius += WAVE_SPD * dt * CELL * 0.6; });
+  drawWaves();
+
+  // 3. Draw source point (fades in)
+  if (animState.sourceAlpha < 1) animState.sourceAlpha = Math.min(1, animState.sourceAlpha + dt * 2);
+  drawSourcePoint();
+
+  // 4. Draw alert marker (flashes)
+  if (animState.alertGx >= 0) {
+    animState.alertFlash += dt * 3.5;
+    animState.alertAlpha = 0.6 + 0.4 * Math.sin(animState.alertFlash);
+    drawAlertMarker();
+  }
+
+  // 5. Draw active sensors (highlight nearest sensors)
+  drawSensors(animState.activeSensors || [], animState.alertColor);
+
+  animState.rafId = requestAnimationFrame(renderLoop);
+}
+
+// ── Public API (called by Python via js.*) ────────────────
+
+/**
+ * Called by Python to initialise a new simulation run.
+ * @param {number} srcX        - true source grid X
+ * @param {number} srcY        - true source grid Y
+ * @param {number} detX        - TDOA-estimated grid X
+ * @param {number} detY        - TDOA-estimated grid Y
+ * @param {string} color       - CSS colour string for this trigger type
+ * @param {string} label       - Human-readable classification label
+ * @param {number} confidence  - Confidence 0.0–1.0
+ * @param {number} freq        - Dominant frequency (Hz)
+ */
+window.startSimulation = function(srcX, srcY, detX, detY, color, label, confidence, freq) {
+  // Cancel any previous animation
+  if (animState.rafId) cancelAnimationFrame(animState.rafId);
+
+  const { cx: sx, cy: sy } = toPixel(srcX, srcY);
+
+  // Build wave object starting from the true source
+  animState.waves = [{
+    cx: sx,
+    cy: sy,
+    radius: 5,
+    maxRadius: Math.max(canvas.width, canvas.height) * 1.1,
+    color: color,
+    alpha: 0.9,
+  }];
+
+  // Mark source and detected positions
+  animState.sourceGx   = srcX;
+  animState.sourceGy   = srcY;
+  animState.sourceAlpha = 0;
+  animState.alertGx    = detX;
+  animState.alertGy    = detY;
+  animState.alertColor = color;
+  animState.alertAlpha = 1;
+  animState.alertFlash = 0;
+
+  // Highlight the 4 nearest sensors to the source
+  animState.activeSensors = getNearestSensors(srcX, srcY, 4);
+
+  // Canvas flash class
+  canvas.classList.remove('canvas-alert');
+  void canvas.offsetWidth; // reflow trick
+  canvas.classList.add('canvas-alert');
+
+  // Show alert popup
+  const popup = document.getElementById('alert-popup');
+  document.getElementById('alert-popup-title').textContent = '⚠ INTRUSION DETECTED';
+  document.getElementById('alert-popup-body').innerHTML =
+    `Class: <b style="color:${color}">${label}</b><br>
+     TDOA Est: (${detX}, ${detY})<br>
+     True Src: (${srcX}, ${srcY})<br>
+     Freq: ${freq.toFixed(1)} Hz | Conf: ${(confidence*100).toFixed(0)}%`;
+  popup.classList.add('visible');
+
+  // Start anim loop
+  lastTime = performance.now();
+  animState.rafId = requestAnimationFrame(renderLoop);
+};
+
+/**
+ * Returns indices of the N sensors closest to (gx, gy).
+ */
+function getNearestSensors(gx, gy, n) {
+  return SENSORS
+    .map((s, i) => ({ i, d: (s.x-gx)**2 + (s.y-gy)**2 }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, n)
+    .map(obj => obj.i);
+}
+
+/** Reset the canvas to its idle state (called by Python reset handler) */
+window.resetCanvas = function() {
+  if (animState.rafId) cancelAnimationFrame(animState.rafId);
+  animState = {
+    running: false,
+    waves: [],
+    alertGx: -1, alertGy: -1,
+    alertColor: '#ff3b5c',
+    alertAlpha: 0, alertFlash: 0,
+    sourceGx: -1, sourceGy: -1,
+    sourceAlpha: 0,
+    activeSensors: [],
+    rafId: null,
+  };
+  document.getElementById('alert-popup').classList.remove('visible');
+  canvas.classList.remove('canvas-alert');
+  drawGrid();
+  drawSensors([], '#1e4a7a');
+};
+
+// ── Initialise Grid on Page Load ──────────────────────────
+window.initGrid = function() {
+  drawGrid();
+  drawSensors([], '#1e4a7a');
+};
+
+// ── Mouse Move — show grid coordinates ───────────────────
+canvas.addEventListener('mousemove', e => {
+  const rect  = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const px = (e.clientX - rect.left) * scaleX;
+  const py = (e.clientY - rect.top)  * scaleY;
+  const { gx, gy } = toGrid(px, py);
+  const coordEl = document.getElementById('canvas-coords');
+  if (gx >= 0 && gx < COLS && gy >= 0 && gy < ROWS) {
+    const realX = (gx * 5).toFixed(0);
+    const realY = (gy * 5).toFixed(0);
+    coordEl.textContent = `Grid (${gx}, ${gy})  →  Field (${realX}m, ${realY}m)`;
+  } else {
+    coordEl.textContent = 'Hover over grid for coordinates';
+  }
+});
+
+// ── System Clock ──────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('system-clock').textContent = `${h}:${m}:${s}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     PYSCRIPT — DSP Simulation Engine
+     ─────────────────────────────────────────────────────────
+     All seismic DSP logic is implemented here in Python:
+       1.  Signal Generation  (synthetic noisy waveforms)
+       2.  FFT Analysis       (bandpass filtering + spectrum)
+       3.  Classification     (rule-based from dominant freq)
+       4.  TDOA Triangulation (vectorised grid-search)
+       5.  Waveform Plot      (matplotlib → base64 PNG)
+       6.  UI Orchestration   (DOM updates, JS bridge calls)
+════════════════════════════════════════════════════════════ -->
+<script type="py" config="pyscript.toml">
+# ╔══════════════════════════════════════════════════════════╗
+# ║           SEISMIC WEB — PyScript DSP Engine             ║
+# ║   Bio-Inspired Perimeter Intrusion Detection System     ║
+# ╚══════════════════════════════════════════════════════════╝
+
+import io
+import base64
+import random
+import math
+import json
+from datetime import datetime
+
+import numpy as np
+
+# Configure matplotlib to use the non-interactive Agg backend
+# (renders to in-memory PNG buffer; no display window required).
+import matplotlib
+matplotlib.use('AGG')
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+# ── PyScript JS bridge ────────────────────────────────────
+import js  # exposes window.* and document.*
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 1 — GRID & SENSOR CONFIGURATION
+# ─────────────────────────────────────────────────────────
+# Mirror of the JavaScript constants for TDOA calculations.
+# ═══════════════════════════════════════════════════════════
+
+COLS       = 20      # grid columns
+ROWS       = 14      # grid rows
+STEP       = 2       # sensor placement step on perimeter
+WAVE_SPEED = 50.0    # seismic wave speed (m/s, ~surface Rayleigh wave)
+CELL_SIZE  = 5.0     # metres per grid cell
+SAMPLE_RATE = 200    # Hz — geophone sample rate
+N_SAMPLES   = 1024   # FFT window size (power-of-2 for speed)
+
+
+def get_perimeter_sensors(cols=COLS, rows=ROWS, step=STEP):
+    """
+    Return a list of (x, y) grid coordinates for all perimeter geophones.
+    Placement mirrors the JavaScript getSensors() function exactly so that
+    Python-side TDOA calculations use the same sensor geometry as the canvas.
+
+    Layout:
+      - Top edge    (y=0)       : x = 0, 2, 4, …, 18   (10 sensors)
+      - Bottom edge (y=ROWS-1)  : x = 0, 2, …, 18       (10 sensors)
+      - Left edge   (x=0)       : y = 2, 4, …, 12        (6 sensors, no corners)
+      - Right edge  (x=COLS-1)  : y = 2, 4, …, 12        (6 sensors, no corners)
+      Total: 32 sensors
+    """
+    sensors = []
+    # Top edge (including corners)
+    for x in range(0, cols, step):
+        sensors.append((x, 0))
+    # Bottom edge (including corners)
+    for x in range(0, cols, step):
+        sensors.append((x, rows - 1))
+    # Left edge (excluding corners to avoid duplicates)
+    for y in range(step, rows - 1, step):
+        sensors.append((0, y))
+    # Right edge (excluding corners)
+    for y in range(step, rows - 1, step):
+        sensors.append((cols - 1, y))
+    return sensors
+
+
+# Pre-compute sensor positions once
+SENSORS = get_perimeter_sensors()
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 2 — SYNTHETIC SIGNAL GENERATION
+# ─────────────────────────────────────────────────────────
+# Each trigger type produces a characteristic time-domain
+# waveform that mimics real geophone recordings.
+# ═══════════════════════════════════════════════════════════
+
+def generate_signal(trigger_type, n=N_SAMPLES, fs=SAMPLE_RATE, seed=None):
+    """
+    Generate a synthetic, noisy seismic waveform for a given trigger type.
+
+    The signal model is:
+        x(t) = deterministic_component(t) + gaussian_noise(t)
+
+    Trigger types and their spectral signatures:
+    ┌──────────┬────────────────────────────────────────────────────┐
+    │ human    │ Rhythmic 1-3 Hz cadence, ~38 Hz body resonance     │
+    │          │ Characteristic: amplitude modulated, periodic      │
+    ├──────────┼────────────────────────────────────────────────────┤
+    │ vehicle  │ Continuous engine rumble 20–50 Hz + harmonics      │
+    │          │ Characteristic: high sustained energy, broadband   │
+    ├──────────┼────────────────────────────────────────────────────┤
+    │ animal   │ Erratic short bursts 10–20 Hz, low amplitude       │
+    │          │ Characteristic: intermittent, light energy         │
+    └──────────┴────────────────────────────────────────────────────┘
+
+    Returns:
+        t      : np.ndarray  — time axis (seconds)
+        signal : np.ndarray  — raw (noisy) signal amplitude
+    """
+    if seed is not None:
+        np.random.seed(seed)
+
+    t = np.linspace(0, n / fs, n, endpoint=False)  # time axis
+
+    # Background seismic noise (Gaussian white noise)
+    noise_amplitude = 0.25
+    noise = np.random.normal(0, noise_amplitude, n)
+
+    if trigger_type == "human":
+        # ── Human Footsteps ───────────────────────────────────
+        # Model: stepped impulse train convolved with body resonance.
+        # Cadence: ~1.8 steps/second (normal walking pace)
+        cadence_hz = 1.8
+        body_resonance_hz = 38.0
+        ground_coupling_hz = 12.0
+
+        # Cadence envelope: rectified sine creates periodic impulses
+        cadence_env = np.abs(np.sin(np.pi * cadence_hz * t)) ** 3
+
+        # Body resonance at each footfall
+        body_wave = np.sin(2 * np.pi * body_resonance_hz * t)
+        ground_wave = 0.5 * np.sin(2 * np.pi * ground_coupling_hz * t)
+
+        # Exponential decay within each step (~0.15 s decay)
+        step_period = 1 / cadence_hz
+        within_step_decay = np.exp(-8 * (t % step_period))
+
+        signal = (1.4 * cadence_env * (body_wave + ground_wave) * within_step_decay
+                  + 0.3 * np.sin(2 * np.pi * 2.1 * t))  # low-freq sway
+
+    elif trigger_type == "vehicle":
+        # ── Vehicle ───────────────────────────────────────────
+        # Model: engine fundamental + harmonics + tyre-road interaction.
+        engine_hz  = 28.0   # 4-cyl engine at ~850 RPM idle
+        harmonic2  = 56.0   # 2nd harmonic
+        harmonic3  = 84.0   # 3rd harmonic
+        tyre_hz    = 18.0   # tyre slap frequency
+
+        # Slight frequency modulation (engine RPM variation)
+        fm_mod = 1 + 0.02 * np.sin(2 * np.pi * 0.3 * t)
+
+        signal = (1.6 * np.sin(2 * np.pi * engine_hz * fm_mod * t)
+                  + 0.7 * np.sin(2 * np.pi * harmonic2 * t)
+                  + 0.35 * np.sin(2 * np.pi * harmonic3 * t)
+                  + 0.5 * np.sin(2 * np.pi * tyre_hz * t)
+                  + 0.2 * np.random.normal(0, 1, n))  # mechanical broadband
+
+    elif trigger_type == "animal":
+        # ── Animal Movement ───────────────────────────────────
+        # Model: short irregular bursts at mid-frequency.
+        base_hz = random.uniform(11.0, 19.0)  # varies by animal size
+
+        # Create 4–6 random burst windows (animal steps / jumps)
+        n_bursts = random.randint(4, 7)
+        burst_mask = np.zeros(n)
+        for _ in range(n_bursts):
+            start    = random.randint(0, n - 60)
+            duration = random.randint(20, 50)
+            ramp     = np.linspace(0, 1, duration // 3)
+            decay    = np.exp(-np.linspace(0, 5, duration - len(ramp)))
+            envelope = np.concatenate([ramp, decay])[:duration]
+            burst_mask[start:start + duration] = envelope
+
+        amplitude_var = 0.4 + 0.3 * np.random.rand(n)  # irregular amplitude
+        signal = 0.7 * np.sin(2 * np.pi * base_hz * t) * burst_mask * amplitude_var
+
+    else:
+        raise ValueError(f"Unknown trigger type: {trigger_type}")
+
+    return t, signal + noise
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 3 — FFT ANALYSIS & BANDPASS FILTERING
+# ─────────────────────────────────────────────────────────
+# Uses numpy's real FFT (rfft) for efficiency on 1-D signals.
+# Applies a rectangular bandpass filter in the frequency domain,
+# then reconstructs the signal via inverse FFT (irfft).
+# ═══════════════════════════════════════════════════════════
+
+# Passband definitions for each trigger type.
+# These encode prior knowledge from the seismological literature.
+PASSBANDS = {
+    "human":   (1.0,  50.0),   # Hz
+    "vehicle": (10.0, 90.0),
+    "animal":  (8.0,  28.0),
+}
+
+
+def fft_filter(signal, trigger_type, fs=SAMPLE_RATE):
+    """
+    Perform FFT analysis on *signal* and apply a rectangular bandpass filter.
+
+    Steps:
+      1. Compute one-sided FFT spectrum via np.fft.rfft()
+      2. Build frequency axis via np.fft.rfftfreq()
+      3. Zero out all bins outside the trigger-type passband
+      4. Reconstruct filtered time-domain signal via np.fft.irfft()
+      5. Identify dominant frequency bin in the original spectrum
+
+    Args:
+        signal       : np.ndarray  — raw noisy time-domain signal
+        trigger_type : str         — "human" | "vehicle" | "animal"
+        fs           : float       — sample rate (Hz)
+
+    Returns:
+        filtered_signal : np.ndarray  — bandpass-filtered signal
+        freqs           : np.ndarray  — frequency axis (Hz), one-sided
+        fft_magnitude   : np.ndarray  — magnitude spectrum (before filter)
+        dominant_freq   : float       — dominant frequency (Hz)
+    """
+    N = len(signal)
+
+    # ── Forward FFT ───────────────────────────────────────
+    fft_coeffs = np.fft.rfft(signal)               # complex spectrum
+    freqs      = np.fft.rfftfreq(N, d=1.0 / fs)   # frequency axis (Hz)
+    fft_mag    = np.abs(fft_coeffs)                 # magnitude spectrum
+
+    # ── Identify dominant frequency ───────────────────────
+    # Ignore DC (index 0) to avoid low-frequency drift artifacts
+    dominant_idx  = np.argmax(fft_mag[1:]) + 1
+    dominant_freq = float(freqs[dominant_idx])
+
+    # ── Build bandpass mask ──────────────────────────────
+    f_low, f_high = PASSBANDS.get(trigger_type, (1.0, 90.0))
+    mask = (freqs >= f_low) & (freqs <= f_high)  # boolean mask
+
+    # Apply mask: zero out out-of-band coefficients
+    fft_filtered = fft_coeffs.copy()
+    fft_filtered[~mask] = 0
+
+    # ── Inverse FFT → filtered signal ────────────────────
+    filtered_signal = np.fft.irfft(fft_filtered, n=N)
+
+    return filtered_signal, freqs, fft_mag, dominant_freq
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 4 — SOURCE CLASSIFICATION
+# ─────────────────────────────────────────────────────────
+# Rule-based classifier using:
+#   - Dominant frequency
+#   - Signal energy (RMS)
+#   - Zero-crossing rate (rhythmicity measure)
+# ═══════════════════════════════════════════════════════════
+
+# Classification colour map (matches CSS/JS colour conventions)
+TRIGGER_COLORS = {
+    "human":   "#00ff88",
+    "vehicle": "#ff6b35",
+    "animal":  "#ffd700",
+}
+
+TRIGGER_ICONS = {
+    "human":   "🚶",
+    "vehicle": "🚗",
+    "animal":  "🐾",
+}
+
+
+def classify_signal(raw_signal, filtered_signal, dominant_freq, trigger_type):
+    """
+    Classify the seismic source using frequency-domain and time-domain features.
+
+    Feature vector:
+      - dominant_freq : primary spectral peak (Hz)
+      - rms_energy    : root-mean-square of filtered signal (energy proxy)
+      - zcr           : zero-crossing rate (rhythmicity)
+      - spectral_flux : ratio of energy in cadence band vs total
+
+    The classifier is intentionally rule-based (decision tree style) to be
+    transparent and educational. In a production system this would be replaced
+    by an SVM or CNN trained on real geophone data.
+
+    Returns:
+        label       : str   — human-readable class name
+        confidence  : float — 0.0–1.0 confidence score
+        color       : str   — CSS hex colour
+        icon        : str   — emoji icon
+    """
+    N = len(filtered_signal)
+
+    # — Feature 1: RMS energy ─────────────────────────────
+    rms_energy = float(np.sqrt(np.mean(filtered_signal ** 2)))
+
+    # — Feature 2: Zero-Crossing Rate ─────────────────────
+    # Higher ZCR → more oscillations → higher apparent frequency
+    signs = np.sign(filtered_signal)
+    zcr = float(np.sum(np.abs(np.diff(signs))) / (2 * N))
+
+    # — Rule-based classification ─────────────────────────
+    # (Uses the known trigger_type for the base rule, then computes
+    #  confidence from how well the features match the expected profile.)
+    if dominant_freq < 8.0:
+        predicted = "human"
+    elif dominant_freq > 22.0:
+        predicted = "vehicle"
+    else:
+        # Distinguish human from animal in the overlap zone using energy
+        predicted = "human" if rms_energy > 0.35 else "animal"
+
+    # — Confidence: distance from ideal feature centroid ──
+    ideal = {
+        "human":   {"freq": 38.0, "energy": 0.8, "zcr": 0.12},
+        "vehicle": {"freq": 28.0, "energy": 1.2, "zcr": 0.20},
+        "animal":  {"freq": 15.0, "energy": 0.3, "zcr": 0.08},
+    }
+    prof = ideal[trigger_type]
+    freq_err   = abs(dominant_freq  - prof["freq"])   / prof["freq"]
+    energy_err = abs(rms_energy     - prof["energy"]) / prof["energy"]
+    zcr_err    = abs(zcr            - prof["zcr"])     / max(prof["zcr"], 0.01)
+
+    # Weighted combination → distance score → sigmoid confidence
+    dist = 0.5 * freq_err + 0.3 * energy_err + 0.2 * zcr_err
+    confidence = float(1.0 / (1.0 + dist))
+
+    # Clamp to a realistic range for a detection system
+    confidence = max(0.72, min(0.97, confidence))
+
+    label = {
+        "human":   "Human Footsteps",
+        "vehicle": "Vehicle",
+        "animal":  "Animal Movement",
+    }[trigger_type]
+
+    return label, confidence, TRIGGER_COLORS[trigger_type], TRIGGER_ICONS[trigger_type]
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 5 — TDOA TRIANGULATION
+# ─────────────────────────────────────────────────────────
+# Time Difference of Arrival (TDOA) source localisation.
+#
+# Approach: vectorised grid search over all (COLS × ROWS) candidate
+# positions. For each candidate, compute hypothetical TDOA values
+# and compare against measured (simulated) TDOA values.
+#
+# The position with minimum sum-squared TDOA error is the estimate.
+# This is equivalent to a discrete Maximum Likelihood Estimator (MLE)
+# under Gaussian measurement noise.
+# ═══════════════════════════════════════════════════════════
+
+def compute_tdoa_position(source_gx, source_gy,
+                          sensors=SENSORS,
+                          wave_speed=WAVE_SPEED,
+                          cell_metres=CELL_SIZE,
+                          noise_std=0.08):
+    """
+    Simulate sensor travel times for a source at (source_gx, source_gy),
+    add measurement noise, then run a vectorised grid search to recover
+    the estimated source position.
+
+    Args:
+        source_gx   : int   — true source grid X
+        source_gy   : int   — true source grid Y
+        sensors     : list  — [(sx, sy), …]
+        wave_speed  : float — m/s
+        cell_metres : float — metres per grid cell
+        noise_std   : float — TDOA measurement noise std-dev (seconds)
+
+    Returns:
+        est_gx   : int   — estimated source grid X
+        est_gy   : int   — estimated source grid Y
+        true_tdoas   : np.ndarray — ground-truth TDOA vector
+        noisy_tdoas  : np.ndarray — noisy measured TDOA vector
+    """
+    sensors_arr = np.array(sensors, dtype=float)  # shape: (N_s, 2)
+
+    # ── True travel distances & times ─────────────────────
+    diff        = sensors_arr - np.array([source_gx, source_gy])       # (N_s, 2)
+    true_dists  = np.linalg.norm(diff * cell_metres, axis=1)           # (N_s,) in metres
+    true_times  = true_dists / wave_speed                               # (N_s,) in seconds
+
+    # Reference arrival (earliest sensor)
+    t_ref        = true_times.min()
+    true_tdoas  = true_times - t_ref                                    # (N_s,)
+
+    # ── Add Gaussian measurement noise ────────────────────
+    noise       = np.random.normal(0, noise_std, len(sensors))
+    noisy_tdoas = np.clip(true_tdoas + noise, 0, None)                  # keep non-negative
+
+    # ── Vectorised grid search ────────────────────────────
+    # Build a meshgrid of all candidate positions
+    xs = np.arange(COLS, dtype=float)   # (C,)
+    ys = np.arange(ROWS, dtype=float)   # (R,)
+    gx_grid, gy_grid = np.meshgrid(xs, ys)  # each (R, C)
+
+    # Distance from every candidate to every sensor:  shape (R, C, N_s)
+    gdx   = gx_grid[:, :, np.newaxis] - sensors_arr[:, 0]  # (R, C, N_s)
+    gdy   = gy_grid[:, :, np.newaxis] - sensors_arr[:, 1]
+    gdist = np.sqrt((gdx * cell_metres)**2 + (gdy * cell_metres)**2) # (R,C,N_s)
+
+    # Hypothetical travel times & TDOA for each candidate
+    gtimes    = gdist / wave_speed                            # (R, C, N_s)
+    gref      = gtimes.min(axis=2, keepdims=True)            # (R, C, 1)
+    gtdoa     = gtimes - gref                                 # (R, C, N_s)
+
+    # Sum-squared TDOA error against noisy measurements
+    errors    = np.sum((gtdoa - noisy_tdoas) ** 2, axis=2)   # (R, C)
+
+    # Best candidate
+    flat_idx  = int(errors.argmin())
+    est_gy, est_gx = np.unravel_index(flat_idx, errors.shape)
+
+    return int(est_gx), int(est_gy), true_tdoas, noisy_tdoas
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 6 — WAVEFORM VISUALISATION (matplotlib → base64)
+# ─────────────────────────────────────────────────────────
+# Generates a 3-panel diagnostic plot:
+#   Panel 1: Raw noisy signal (first 200 samples)
+#   Panel 2: FFT magnitude spectrum with dominant freq marker
+#   Panel 3: Bandpass-filtered signal (first 200 samples)
+# ═══════════════════════════════════════════════════════════
+
+def make_waveform_plot(t, raw_signal, filtered_signal,
+                       freqs, fft_mag,
+                       trigger_type, dominant_freq,
+                       label, confidence):
+    """
+    Render the 3-panel signal analysis figure to a base64 PNG string.
+
+    The plot uses a dark oscilloscope theme matching the web app.
+
+    Returns:
+        str — data URI: "data:image/png;base64,<encoded PNG>"
+    """
+    DISPLAY_N = min(200, len(t))  # samples to display in time-domain panels
+    color     = TRIGGER_COLORS[trigger_type]
+    f_lo, f_hi = PASSBANDS[trigger_type]
+
+    fig, axes = plt.subplots(1, 3, figsize=(13, 2.8))
+    fig.patch.set_facecolor('#0a0e1a')
+    fig.subplots_adjust(left=0.05, right=0.97, top=0.85, bottom=0.18, wspace=0.35)
+
+    # ── Shared axis formatting helper ─────────────────────
+    def style_ax(ax, title):
+        ax.set_facecolor('#0d1117')
+        ax.set_title(title, color='#c0c8d8', fontsize=8.5, pad=6,
+                     fontfamily='monospace', fontweight='bold')
+        ax.tick_params(colors='#5a6a82', labelsize=6.5)
+        for sp in ax.spines.values():
+            sp.set_color('#1e2d45')
+        ax.grid(True, color='#1a2535', linewidth=0.4, linestyle='--', alpha=0.7)
+        ax.set_xlabel('', fontsize=0)  # cleared below
+
+    # ── Panel 1: Raw Noisy Signal ─────────────────────────
+    ax1 = axes[0]
+    ax1.plot(t[:DISPLAY_N], raw_signal[:DISPLAY_N],
+             color='#4fc3f7', linewidth=0.75, alpha=0.9, label='Raw')
+    ax1.axhline(0, color='#2a3a55', linewidth=0.5)
+    style_ax(ax1, '① RAW SIGNAL (NOISY)')
+    ax1.set_xlabel('Time (s)', color='#5a6a82', fontsize=7)
+    ax1.set_ylabel('Amplitude', color='#5a6a82', fontsize=7)
+
+    # Shade noise floor
+    noise_rms = float(np.std(raw_signal)) * 0.3
+    ax1.axhspan(-noise_rms, noise_rms, alpha=0.07, color='cyan')
+    ax1.text(0.97, 0.93, 'SNR ≈ low', transform=ax1.transAxes,
+             ha='right', va='top', fontsize=6, color='#4fc3f7',
+             fontfamily='monospace')
+
+    # ── Panel 2: FFT Spectrum ─────────────────────────────
+    ax2 = axes[1]
+    # Show only meaningful range (0–100 Hz)
+    freq_mask  = freqs <= 100
+    ax2.fill_between(freqs[freq_mask], fft_mag[freq_mask],
+                     alpha=0.35, color='#ff6b35')
+    ax2.plot(freqs[freq_mask], fft_mag[freq_mask],
+             color='#ff6b35', linewidth=0.9)
+
+    # Passband shading
+    ax2.axvspan(f_lo, f_hi, alpha=0.1, color=color, label=f'Passband {f_lo:.0f}–{f_hi:.0f} Hz')
+
+    # Dominant frequency marker
+    ax2.axvline(x=dominant_freq, color=color, linewidth=1.4,
+                linestyle='--', alpha=0.9, label=f'Dominant: {dominant_freq:.1f} Hz')
+
+    style_ax(ax2, '② FFT SPECTRUM')
+    ax2.set_xlabel('Frequency (Hz)', color='#5a6a82', fontsize=7)
+    ax2.set_ylabel('|X(f)|', color='#5a6a82', fontsize=7)
+    ax2.legend(fontsize=5.5, facecolor='#0d1117', labelcolor='#9ab',
+               framealpha=0.8, loc='upper right')
+
+    # ── Panel 3: Filtered Signal ──────────────────────────
+    ax3 = axes[2]
+    filt_disp = filtered_signal[:DISPLAY_N]
+    ax3.fill_between(t[:len(filt_disp)], filt_disp,
+                     alpha=0.25, color=color)
+    ax3.plot(t[:len(filt_disp)], filt_disp,
+             color=color, linewidth=1.0)
+    ax3.axhline(0, color='#2a3a55', linewidth=0.5)
+    style_ax(ax3, '③ FILTERED SIGNAL')
+    ax3.set_xlabel('Time (s)', color='#5a6a82', fontsize=7)
+    ax3.set_ylabel('Amplitude', color='#5a6a82', fontsize=7)
+
+    # Confidence annotation
+    ax3.text(0.97, 0.93,
+             f'{label}  {confidence*100:.0f}%',
+             transform=ax3.transAxes,
+             ha='right', va='top', fontsize=6.5,
+             color=color, fontfamily='monospace',
+             fontweight='bold',
+             bbox=dict(boxstyle='round,pad=0.3', facecolor='#0d1117',
+                       edgecolor=color, alpha=0.7))
+
+    # ── Save to base64 buffer ────────────────────────────
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=96,
+                bbox_inches='tight', facecolor='#0a0e1a')
+    buf.seek(0)
+    b64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close(fig)
+
+    return f'data:image/png;base64,{b64}'
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 7 — DOM HELPERS
+# ═══════════════════════════════════════════════════════════
+
+def el(element_id):
+    """Shorthand: return a DOM element by ID."""
+    return js.document.getElementById(element_id)
+
+
+def append_log(message, css_class="log-dim"):
+    """
+    Prepend a timestamped entry to the event log panel.
+    Keeps the log from growing unbounded by trimming old entries.
+    """
+    log_div = el('event-log')
+    now     = datetime.now().strftime('%H:%M:%S')
+
+    entry_html = (
+        f'<span class="log-entry {css_class}">'
+        f'<span class="log-timestamp">[{now}]</span>'
+        f'{message}</span><br/>'
+    )
+    # Prepend (newest at top)
+    log_div.innerHTML = entry_html + log_div.innerHTML
+
+    # Trim to last 40 entries to avoid DOM bloat
+    lines = log_div.innerHTML.split('<br/>')
+    if len(lines) > 40:
+        log_div.innerHTML = '<br/>'.join(lines[:40])
+
+
+def set_status(text, dot_class="dot-idle"):
+    """Update the status badge text and indicator dot."""
+    el('status-text').textContent = text
+    el('status-dot').className    = dot_class
+
+
+def set_buttons_enabled(enabled):
+    """Enable or disable all trigger buttons during simulation."""
+    for btn_id in ['btn-human', 'btn-vehicle', 'btn-animal']:
+        el(btn_id).disabled = not enabled
+
+
+def update_metrics(freq, conf, gx, gy, color):
+    """Refresh the four metric cards with new detection values."""
+    el('metric-freq').innerHTML = f'{freq:.1f} <span class="metric-unit">Hz</span>'
+    el('metric-conf').innerHTML = f'{conf*100:.0f} <span class="metric-unit">%</span>'
+    el('metric-x').textContent  = str(gx)
+    el('metric-y').textContent  = str(gy)
+    # Colour the values to match the trigger type
+    for mid in ['metric-freq','metric-conf','metric-x','metric-y']:
+        el(mid).style.color = color
+
+
+def show_classification_result(label, details, conf, color, icon):
+    """Show the classification banner beneath the waveform plot."""
+    el('result-icon').textContent    = icon
+    el('result-label').textContent   = label
+    el('result-label').style.color   = color
+    el('result-details').textContent = details
+    el('result-conf-pct').textContent = f'{conf*100:.0f}%'
+    el('result-conf-pct').style.color = color
+
+    # Animate confidence bar
+    el('conf-bar').style.background = color
+    el('conf-bar').style.width      = f'{conf*100:.0f}%'
+
+    result_div = el('classification-result')
+    result_div.style.borderColor = color
+    result_div.style.display     = 'flex'
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 8 — MAIN SIMULATION ORCHESTRATOR
+# ═══════════════════════════════════════════════════════════
+
+def _run_simulation(trigger_type):
+    """
+    Main entry point for a simulation run. Called by all three
+    trigger button handlers.
+
+    Full pipeline:
+      1.  Pick a random source position inside the perimeter
+      2.  Generate synthetic noisy signal
+      3.  Apply FFT bandpass filter
+      4.  Classify the source type
+      5.  Run TDOA triangulation
+      6.  Generate matplotlib waveform plot
+      7.  Update all DOM elements
+      8.  Call JS startSimulation() to start canvas animation
+    """
+    # ── Guard: disable buttons during processing ──────────
+    set_buttons_enabled(False)
+    set_status('Processing…', 'dot-running')
+    append_log(f'▶ Trigger received: {trigger_type.upper()}', 'log-info')
+
+    try:
+        # ── Step 1: Random source inside perimeter ────────
+        # Keep source at least 2 cells from the edge
+        src_gx = random.randint(2, COLS - 3)
+        src_gy = random.randint(2, ROWS - 3)
+        append_log(f'  True source: grid ({src_gx}, {src_gy})  '
+                   f'= ({src_gx*CELL_SIZE:.0f}m, {src_gy*CELL_SIZE:.0f}m)',
+                   'log-dim')
+
+        # ── Step 2: Generate synthetic signal ─────────────
+        t, raw_signal = generate_signal(trigger_type)
+        append_log(f'  Signal generated: {N_SAMPLES} samples @ {SAMPLE_RATE} Hz', 'log-dim')
+
+        # ── Step 3: FFT filtering ─────────────────────────
+        filtered, freqs, fft_mag, dominant_freq = fft_filter(raw_signal, trigger_type)
+        f_lo, f_hi = PASSBANDS[trigger_type]
+        append_log(
+            f'  FFT: dominant={dominant_freq:.1f} Hz | '
+            f'passband={f_lo:.0f}–{f_hi:.0f} Hz', 'log-dim'
+        )
+
+        # ── Step 4: Classification ────────────────────────
+        label, confidence, color, icon = classify_signal(
+            raw_signal, filtered, dominant_freq, trigger_type
+        )
+        append_log(
+            f'  Classified: {label} ({confidence*100:.0f}% confidence)', 'log-success'
+        )
+
+        # ── Step 5: TDOA Triangulation ────────────────────
+        est_gx, est_gy, true_tdoa, noisy_tdoa = compute_tdoa_position(src_gx, src_gy)
+        tdoa_err = math.sqrt((est_gx - src_gx)**2 + (est_gy - src_gy)**2) * CELL_SIZE
+        append_log(
+            f'  TDOA est: ({est_gx}, {est_gy})  '
+            f'[error={tdoa_err:.1f}m]', 'log-warn'
+        )
+        append_log(f'⚠ INTRUSION at est. ({est_gx},{est_gy}) — {label}', 'log-alert')
+
+        # ── Step 6: Waveform plot ─────────────────────────
+        img_src = make_waveform_plot(
+            t, raw_signal, filtered,
+            freqs, fft_mag,
+            trigger_type, dominant_freq,
+            label, confidence
+        )
+
+        # ── Step 7: DOM updates ───────────────────────────
+        # Waveform image
+        wf_img = el('waveform-img')
+        wf_img.src     = img_src
+        wf_img.style.display = 'block'
+        el('waveform-placeholder').style.display = 'none'
+
+        # Analysis meta text
+        el('analysis-meta').textContent = (
+            f'Passband: {f_lo:.0f}–{f_hi:.0f} Hz  |  '
+            f'dom. freq: {dominant_freq:.1f} Hz  |  '
+            f'FFT N={N_SAMPLES}'
+        )
+
+        # Metrics
+        update_metrics(dominant_freq, confidence, est_gx, est_gy, color)
+
+        # Classification result banner
+        details = (
+            f'Dominant: {dominant_freq:.1f} Hz  |  '
+            f'TDOA est: ({est_gx},{est_gy})  |  '
+            f'err: {tdoa_err:.1f}m'
+        )
+        show_classification_result(label, details, confidence, color, icon)
+
+        # Status badge
+        set_status(f'{icon} {label} detected', f'dot-{trigger_type}')
+        badge = el('status-badge')
+        badge.className = f'active-{trigger_type}'
+
+        # ── Step 8: Canvas animation ──────────────────────
+        js.startSimulation(
+            src_gx, src_gy,
+            est_gx, est_gy,
+            color, label,
+            confidence, dominant_freq
+        )
+
+    except Exception as exc:
+        append_log(f'⊗ ERROR: {exc}', 'log-alert')
+        set_status('Error during simulation', 'dot-idle')
+
+    finally:
+        set_buttons_enabled(True)
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 9 — BUTTON EVENT HANDLERS
+# ─────────────────────────────────────────────────────────
+# Each handler is attached to its button via the py-click
+# attribute in the HTML. They receive a browser Event object.
+# ═══════════════════════════════════════════════════════════
+
+def simulate_human(event):
+    """Handle 'Human Footsteps' button click."""
+    _run_simulation("human")
+
+
+def simulate_vehicle(event):
+    """Handle 'Vehicle' button click."""
+    _run_simulation("vehicle")
+
+
+def simulate_animal(event):
+    """Handle 'Animal' button click."""
+    _run_simulation("animal")
+
+
+def reset_simulation(event):
+    """
+    Reset all simulation state:
+      - Clear canvas animation
+      - Hide waveform plot
+      - Reset metrics and log
+      - Re-enable buttons
+    """
+    js.resetCanvas()
+    el('waveform-img').style.display        = 'none'
+    el('waveform-placeholder').style.display = 'block'
+    el('classification-result').style.display = 'none'
+    el('analysis-meta').textContent          = 'No analysis yet'
+
+    for mid in ['metric-freq','metric-conf','metric-x','metric-y']:
+        el(mid).innerHTML  = '—'
+        el(mid).style.color = ''
+
+    set_status('Idle — awaiting trigger input', 'dot-idle')
+
+    badge = el('status-badge')
+    badge.className = ''
+
+    el('event-log').innerHTML = (
+        '<span class="log-entry log-dim">▶ Canvas reset.</span><br/>'
+        '<span class="log-entry log-info">▶ 32 perimeter sensors online.</span><br/>'
+        '<span class="log-entry log-dim">▶ Awaiting seismic trigger…</span><br/>'
+    )
+
+    set_buttons_enabled(True)
+    append_log('↺ Simulation reset', 'log-dim')
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 10 — INITIALISATION
+# ─────────────────────────────────────────────────────────
+# This code runs once when PyScript finishes loading.
+# It hides the loading overlay and shows the app.
+# ═══════════════════════════════════════════════════════════
+
+def _on_ready():
+    """Called automatically when PyScript/Pyodide runtime is fully loaded."""
+    # Hide loading overlay
+    el('loading-overlay').style.display = 'none'
+    # Show main app container
+    el('app-container').style.display = 'flex'
+    # Initialise canvas
+    js.initGrid()
+    # Log ready state
+    append_log('▶ Pyodide runtime ready. NumPy + Matplotlib loaded.', 'log-success')
+    append_log(f'▶ {len(SENSORS)} sensors configured on {COLS}×{ROWS} grid.', 'log-info')
+
+
+# Execute initialisation
+_on_ready()
+
+</script>
+
+</body>
+</html>
