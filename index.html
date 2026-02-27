@@ -14,57 +14,61 @@
 packages = ["numpy", "matplotlib"]
 </py-config>
 <style>
-/* ─── v3.1 inline additions ─────────────────────────────── */
+/* ─── v3.2 inline additions ─────────────────────────────── */
 :root{
-  --neon-green:  #00ffaa;
+  --neon-green:  #00ffbb;
   --neon-orange: #ff5500;
   --neon-yellow: #ffe600;
-  --neon-cyan:   #00e5ff;
+  --neon-cyan:   #00d4ff;
   --neon-purple: #c060ff;
-  --neon-red:    #ff2255;
+  --neon-red:    #ff1a44;
 }
-/* Internals strip */
+/* Section labels */
+.section-label{
+  font-family:'Orbitron',monospace;font-size:0.55rem;font-weight:600;
+  letter-spacing:.14em;color:#506070;text-transform:uppercase;margin-bottom:5px;
+}
+/* Internals strip — compact */
 #internals-strip{
   display:grid;grid-template-columns:repeat(4,1fr);
   gap:0;background:#06090f;border-top:1px solid #1a2540;
   border-bottom:1px solid #1a2540;flex-shrink:0;
-  max-height:78px;overflow:hidden;
+  max-height:64px;overflow:hidden;
 }
 .intern-col{
-  padding:7px 12px;border-right:1px solid #1a2540;
+  padding:5px 10px;border-right:1px solid #1a2540;
 }
 .intern-col:last-child{border-right:none;}
 .intern-title{
-  font-family:'Orbitron',monospace;font-size:0.52rem;
-  letter-spacing:.1em;color:#4a6080;text-transform:uppercase;
-  margin-bottom:3px;
+  font-family:'Orbitron',monospace;font-size:0.50rem;
+  letter-spacing:.1em;color:#4a7090;text-transform:uppercase;
+  margin-bottom:2px;
 }
 .intern-formula{
-  font-family:'Share Tech Mono',monospace;font-size:0.72rem;
-  color:var(--neon-cyan);margin-bottom:4px;white-space:nowrap;
-  text-shadow:0 0 8px rgba(0,229,255,.5);
+  font-family:'Share Tech Mono',monospace;font-size:0.68rem;
+  color:#00d4ff;margin-bottom:3px;white-space:nowrap;
+  text-shadow:0 0 8px rgba(0,212,255,.6);
 }
-.intern-vars{display:flex;flex-direction:column;gap:1px;}
+.intern-vars{display:flex;flex-direction:column;gap:0;}
 .intern-vars span{
-  font-family:'Share Tech Mono',monospace;font-size:0.62rem;
+  font-family:'Share Tech Mono',monospace;font-size:0.58rem;
   color:#5a7090;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.intern-vars span.live{color:#9ab0c8;}
-/* 8-card metrics grid */
-.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
-/* expand to 8 */
-.metrics-grid-2{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:5px;}
-/* Improvement suggestions */
+.intern-vars span.live{color:#80b0d0;}
+/* 8-card metrics grid — 4 columns */
+.metrics-grid{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:4px!important;}
+.metrics-grid-2{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px;}
+/* Improvement suggestions — compact */
 #suggestions{
-  padding:8px 14px;background:#05080e;border-top:1px solid #1a2540;
-  font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#3a5070;
-  display:flex;gap:18px;flex-wrap:wrap;flex-shrink:0;
+  padding:3px 12px 4px;background:#04070d;border-top:1px solid #0e1e32;
+  font-family:'Share Tech Mono',monospace;font-size:0.56rem;color:#3a5878;
+  display:flex;gap:3px 14px;flex-wrap:wrap;flex-shrink:0;
 }
-#suggestions span{color:#2a4060;}
-#suggestions b{color:#4a7090;}
-/* Override accent to neon values */
-#sim-canvas{border:1px solid rgba(0,229,255,.18);}
-.mini-canvas{border:1px solid rgba(0,229,255,.12);}
+#suggestions span{color:#304860;}
+#suggestions b{color:#4a7890;}
+/* Canvas borders — neon glow */
+#sim-canvas{border:1px solid rgba(0,212,255,.22);box-shadow:0 0 12px rgba(0,212,255,.08);}
+.mini-canvas{border:1px solid rgba(0,212,255,.14);}
 </style>
 </head>
 <body>
@@ -363,13 +367,13 @@ const CELL_M = 5;      // metres per grid cell
 
 // Neon palette (matches CSS variables)
 const NEON = {
-  human:   '#00ffaa',
+  human:   '#00ffbb',
   vehicle: '#ff5500',
   animal:  '#ffe600',
-  cyan:    '#00e5ff',
+  cyan:    '#00d4ff',
   purple:  '#c060ff',
   white:   '#ffffff',
-  dimGrid: 'rgba(0,229,255,0.08)',
+  dimGrid: 'rgba(0,212,255,0.08)',
 };
 
 const gridCanvas = document.getElementById('sim-canvas');
