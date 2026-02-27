@@ -28,6 +28,7 @@ packages = ["numpy", "matplotlib"]
   display:grid;grid-template-columns:repeat(4,1fr);
   gap:0;background:#06090f;border-top:1px solid #1a2540;
   border-bottom:1px solid #1a2540;flex-shrink:0;
+  max-height:78px;overflow:hidden;
 }
 .intern-col{
   padding:7px 12px;border-right:1px solid #1a2540;
@@ -84,7 +85,7 @@ packages = ["numpy", "matplotlib"]
 <div id="app-container" style="display:none">
 
   <!-- HEADER ──────────────────────────────────────────── -->
-  <header id="app-header">
+  <header id="header">
     <div class="header-left">
       <span class="header-logo">⬡</span>
       <span class="header-title">SEISMIC<span class="header-accent">WEB</span></span>
@@ -112,17 +113,17 @@ packages = ["numpy", "matplotlib"]
       <div class="panel-section">
         <div class="section-label">INTRUDER TYPE</div>
         <div class="trigger-btns">
-          <button id="btn-human"   class="trigger-btn" onclick="startSimulation('human')">
+          <button id="btn-human"   class="trigger-btn btn-human"   onclick="startSimulation('human')">
             <span class="btn-icon">🚶</span>
-            <div class="btn-text"><span class="btn-title">Human</span><span class="btn-freq">35–45 Hz</span></div>
+            <div class="btn-text"><span class="btn-title">Human</span><span class="btn-freq">1–2 Hz</span></div>
           </button>
-          <button id="btn-vehicle" class="trigger-btn" onclick="startSimulation('vehicle')">
+          <button id="btn-vehicle" class="trigger-btn btn-vehicle" onclick="startSimulation('vehicle')">
             <span class="btn-icon">🚗</span>
-            <div class="btn-text"><span class="btn-title">Vehicle</span><span class="btn-freq">20–35 Hz</span></div>
+            <div class="btn-text"><span class="btn-title">Vehicle</span><span class="btn-freq">~50 Hz</span></div>
           </button>
-          <button id="btn-animal"  class="trigger-btn" onclick="startSimulation('animal')">
+          <button id="btn-animal"  class="trigger-btn btn-animal"  onclick="startSimulation('animal')">
             <span class="btn-icon">🐾</span>
-            <div class="btn-text"><span class="btn-title">Animal</span><span class="btn-freq">8–18 Hz</span></div>
+            <div class="btn-text"><span class="btn-title">Animal</span><span class="btn-freq">4–6 Hz</span></div>
           </button>
         </div>
         <div class="control-row" style="margin-top:8px">
@@ -200,6 +201,9 @@ packages = ["numpy", "matplotlib"]
         <div class="sensor-stat"><span>Analysis Δt</span><span>2 s</span></div>
         <div class="sensor-stat"><span>TDOA model</span><span>Grid search</span></div>
         <div class="sensor-stat"><span>FFT window</span><span>Hanning</span></div>
+        <div class="sensor-stat"><span>Human freq</span><span>1–2 Hz</span></div>
+        <div class="sensor-stat"><span>Vehicle freq</span><span>~50 Hz</span></div>
+        <div class="sensor-stat"><span>Animal freq</span><span>4–6 Hz</span></div>
         <div class="sensor-stat"><span>Signal model</span><span>s(t)=Ae⁻ᵅᵈf(t)+n</span></div>
       </div>
 
@@ -449,21 +453,24 @@ function updateWaveformBuffer(dt) {
     let s = 0;
     switch (sim.trigger) {
       case 'human': {
+        // Footstep cadence ~1.8 steps/s, seismic freq 1–2 Hz
         const cad = Math.abs(Math.sin(Math.PI * 1.8 * tv)) ** 3;
-        s = decay * (cad * Math.sin(6.283 * 38 * tv) * 1.3 + 0.3 * Math.sin(6.283 * 2.1 * tv));
+        s = decay * (cad * Math.sin(6.283 * 1.5 * tv) * 1.3 + 0.3 * Math.sin(6.283 * 0.9 * tv));
         break;
       }
       case 'vehicle': {
-        const fm = 1 + 0.02 * Math.sin(6.283 * 0.3 * tv);
-        s = decay * (1.4 * Math.sin(6.283 * 28 * fm * tv) +
-                     0.6 * Math.sin(6.283 * 56 * tv) +
-                     0.3 * Math.sin(6.283 * 84 * tv));
+        // Engine vibration ~50 Hz with harmonics
+        const fm = 1 + 0.025 * Math.sin(6.283 * 0.3 * tv);
+        s = decay * (1.4 * Math.sin(6.283 * 50 * fm * tv) +
+                     0.5 * Math.sin(6.283 * 100 * tv) +
+                     0.2 * Math.sin(6.283 * 150 * tv));
         break;
       }
       case 'animal': {
+        // Paw-fall bursts, dominant 4–6 Hz
         if (Math.random() < 0.008) sim.animalBurst = 1.2;
-        sim.animalBurst *= 0.96;
-        s = decay * sim.animalBurst * Math.sin(6.283 * 15 * tv) * 0.9;
+        sim.animalBurst *= 0.97;
+        s = decay * sim.animalBurst * Math.sin(6.283 * 5 * tv) * 0.9;
         break;
       }
     }
@@ -811,8 +818,12 @@ function renderFFT() {
   }
   const { freqs, mag, passLo, passHi, domFreq } = sim.fftData;
   const color = NEON[sim.trigger] || NEON.cyan;
-  const maxFreq = 120;
+  // Adaptive frequency scale per trigger type
+  const maxFreq = sim.trigger === 'human' ? 8 : sim.trigger === 'animal' ? 20 : 160;
   const fToX = f => ML + (f / maxFreq) * PW;
+  const fTicks = sim.trigger === 'human'  ? [0,1,2,3,4,5,6,7,8] :
+                 sim.trigger === 'animal' ? [0,4,8,12,16,20] :
+                                            [0,20,40,60,80,100,120,140,160];
 
   // Plot border
   ctx.strokeStyle = 'rgba(0,180,220,0.1)'; ctx.lineWidth = 0.5;
@@ -823,7 +834,7 @@ function renderFFT() {
   ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center';
   ctx.fillText('Mag', 0, 0); ctx.restore();
 
-  // Y axis ticks: 0, 0.25, 0.50, 0.75, 1.0
+  // Y axis ticks
   ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right';
   [0, 0.25, 0.5, 0.75, 1.0].forEach(v => {
     const y = PH - v * PH;
@@ -832,51 +843,51 @@ function renderFFT() {
     ctx.lineWidth = 0.5; ctx.moveTo(ML, y); ctx.lineTo(W, y); ctx.stroke();
   });
 
-  // Passband shaded region
+  // Passband shaded region — clip to maxFreq
+  const pb0 = Math.min(passLo, maxFreq); const pb1 = Math.min(passHi, maxFreq);
   ctx.fillStyle = color + '1a';
-  ctx.fillRect(fToX(passLo), 0, fToX(passHi)-fToX(passLo), PH);
-  // Passband edge lines
+  ctx.fillRect(fToX(pb0), 0, fToX(pb1)-fToX(pb0), PH);
   ctx.setLineDash([3,3]);
-  [passLo, passHi].forEach(f => {
+  [pb0, pb1].forEach(f => {
     ctx.beginPath(); ctx.strokeStyle = color + '55'; ctx.lineWidth = 0.8;
     ctx.moveTo(fToX(f), 0); ctx.lineTo(fToX(f), PH); ctx.stroke();
   });
   ctx.setLineDash([]);
-  // Passband labels
   ctx.font = '6px "Share Tech Mono"'; ctx.fillStyle = color + '88'; ctx.textAlign = 'center';
-  ctx.fillText(`${passLo}Hz`, fToX(passLo), 7);
-  ctx.fillText(`${passHi}Hz`, fToX(passHi), 7);
+  ctx.fillText(`${passLo}Hz`, fToX(pb0), 7);
+  ctx.fillText(`${passHi}Hz`, fToX(pb1), 7);
 
-  // Spectrum fill + line
+  // Spectrum fill — only draw bins within maxFreq
+  const visFreqs = freqs.map((f,i) => ({f,m:mag[i]})).filter(d => d.f <= maxFreq);
   ctx.beginPath(); ctx.moveTo(ML, PH);
-  for (let i = 0; i < freqs.length; i++) ctx.lineTo(fToX(freqs[i]), PH - mag[i] * PH);
-  ctx.lineTo(W, PH); ctx.closePath();
-  ctx.fillStyle = color + '50'; ctx.fill();
+  visFreqs.forEach(d => ctx.lineTo(fToX(d.f), PH - d.m * PH));
+  ctx.lineTo(ML + (visFreqs[visFreqs.length-1]?.f||0)/maxFreq*PW, PH);
+  ctx.closePath(); ctx.fillStyle = color + '50'; ctx.fill();
   ctx.beginPath();
-  for (let i = 0; i < freqs.length; i++) {
-    const x = fToX(freqs[i]); const y = PH - mag[i] * PH;
+  visFreqs.forEach((d,i) => {
+    const x = fToX(d.f); const y = PH - d.m * PH;
     i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
-  }
+  });
   ctx.strokeStyle = color; ctx.lineWidth = 1.3;
   ctx.shadowColor = color; ctx.shadowBlur = 5; ctx.stroke(); ctx.shadowBlur = 0;
 
-  // Dominant frequency vertical line
-  const dx = fToX(domFreq);
+  // Dominant freq line
+  const df = Math.min(domFreq, maxFreq);
+  const dx = fToX(df);
   ctx.beginPath(); ctx.moveTo(dx, 0); ctx.lineTo(dx, PH);
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.3;
   ctx.setLineDash([4,3]); ctx.stroke(); ctx.setLineDash([]);
   ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-  ctx.fillText(`${domFreq.toFixed(1)} Hz`, dx + 3, 11);
+  ctx.fillText(`${domFreq.toFixed(2)} Hz`, dx + 3, 11);
 
-  // X-axis ticks & label
+  // X-axis ticks
   ctx.textAlign = 'center'; ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070';
-  [0, 20, 40, 60, 80, 100, 120].forEach(f => {
+  fTicks.forEach(f => {
     const x = fToX(f);
     ctx.fillText(`${f}`, x, H - 3);
     ctx.beginPath(); ctx.strokeStyle = 'rgba(0,180,220,0.1)'; ctx.lineWidth = 0.5;
     ctx.moveTo(x, 0); ctx.lineTo(x, PH); ctx.stroke();
   });
-  // X-axis label
   ctx.fillStyle = '#3a5070'; ctx.textAlign = 'right';
   ctx.fillText('Freq (Hz)', W - 2, H - 5);
 }
@@ -1279,17 +1290,20 @@ def generate_signal(trigger_type, src_gx, src_gy, noise, wave_speed, sample_rate
     d_min = min(dists)
     decay = math.exp(-d_min * 0.12)
     if trigger_type == 'human':
+        # Footstep cadence ~1.8 Hz, seismic signature 1–2 Hz
         cadence = np.abs(np.sin(math.pi * 1.8 * t)) ** 3
-        sig = decay * (cadence * np.sin(2*math.pi*38*t)*1.3 + 0.3*np.sin(2*math.pi*2.1*t))
+        sig = decay * (cadence * np.sin(2*math.pi*1.5*t)*1.3 + 0.3*np.sin(2*math.pi*0.9*t))
     elif trigger_type == 'vehicle':
-        fm  = 1 + 0.02 * np.sin(2*math.pi*0.3*t)
-        sig = decay * (1.4*np.sin(2*math.pi*28*fm*t) + 0.6*np.sin(2*math.pi*56*t) + 0.3*np.sin(2*math.pi*84*t))
+        # Engine vibration dominant ~50 Hz with harmonics
+        fm  = 1 + 0.025 * np.sin(2*math.pi*0.3*t)
+        sig = decay * (1.4*np.sin(2*math.pi*50*fm*t) + 0.5*np.sin(2*math.pi*100*t) + 0.2*np.sin(2*math.pi*150*t))
     elif trigger_type == 'animal':
+        # Paw-fall bursts dominant 4–6 Hz
         burst_times = np.random.choice(N, size=8, replace=False)
         env = np.zeros(N)
         for bt in burst_times:
             env += np.exp(-np.abs(t - t[bt]) * 15)
-        sig = decay * env * np.sin(2*math.pi*15*t) * 0.9
+        sig = decay * env * np.sin(2*math.pi*5*t) * 0.9
     else:
         sig = np.zeros(N)
     noise_arr = np.random.normal(0, noise, N)
@@ -1305,23 +1319,25 @@ def fft_analysis(sig, sample_rate, trigger_type):
     window = np.hanning(N)
     fft    = np.abs(np.fft.rfft(sig * window))
     freq   = np.fft.rfftfreq(N, d=1/sample_rate)
-    bands  = {'human': (30, 50), 'vehicle': (20, 40), 'animal': (8, 20)}
-    pass_lo, pass_hi = bands.get(trigger_type, (10, 80))
-    mask = freq <= 120
+    bands  = {'human': (0.5, 3.0), 'vehicle': (35, 80), 'animal': (3.0, 8.0)}
+    pass_lo, pass_hi = bands.get(trigger_type, (1, 80))
+    mask = freq <= 160
     freq = freq[mask]; fft = fft[mask]
     if fft.max() > 0: fft = fft / fft.max()
     pb_mask = (freq >= pass_lo) & (freq <= pass_hi)
-    if pb_mask.any():
+    if pb_mask.any() and fft[pb_mask].max() > 0:
         dom_freq = float(freq[pb_mask][np.argmax(fft[pb_mask])])
+    elif len(freq) > 0:
+        dom_freq = float(freq[np.argmax(fft)])
     else:
-        dom_freq = float(freq[np.argmax(fft)]) if len(freq) > 0 else 0.0
+        dom_freq = 0.0
     return freq.tolist(), fft.tolist(), dom_freq, pass_lo, pass_hi
 
 def classify_signal(dominant_freq, trigger_type):
     rules = [
-        {'label':'Human Footsteps', 'icon':'🚶', 'color':'#00ffaa', 'lo':30, 'hi':55, 'true':'human'},
-        {'label':'Vehicle Engine',  'icon':'🚗', 'color':'#ff5500', 'lo':18, 'hi':38, 'true':'vehicle'},
-        {'label':'Animal Activity', 'icon':'🐾', 'color':'#ffe600', 'lo':5,  'hi':22, 'true':'animal'},
+        {'label':'Human Footsteps', 'icon':'🚶', 'color':'#00ffaa', 'lo':0.5, 'hi':3.0, 'true':'human'},
+        {'label':'Vehicle Engine',  'icon':'🚗', 'color':'#ff5500', 'lo':35,  'hi':80,  'true':'vehicle'},
+        {'label':'Animal Activity', 'icon':'🐾', 'color':'#ffe600', 'lo':3.0, 'hi':8.0, 'true':'animal'},
     ]
     best_cls = rules[0]; best_score = 0.0
     for rule in rules:
