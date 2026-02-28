@@ -36,7 +36,7 @@ packages = ["numpy", "matplotlib"]
 <!-- LOADING OVERLAY ──────────────────────────────────── -->
 <div id="loading-overlay">
   <div class="loading-content">
-    <div class="loading-logo">⬡</div>
+    <div class="loading-spinner"></div>
     <div class="loading-title">SEISMIC WEB</div>
     <div class="loading-subtitle">Bio-Inspired Perimeter Intrusion Detection</div>
     <div class="loading-bar-wrap"><div class="loading-bar-fill" id="loading-bar"></div></div>
@@ -63,6 +63,7 @@ packages = ["numpy", "matplotlib"]
     </div>
     <div class="header-right">
       <span class="header-meta">64 SENSORS · 20×14 GRID · 100m×70m</span>
+      <button class="btn-internals" onclick="toggleInternals()">&#9881; System Internals</button>
       <span id="system-clock" class="header-clock">00:00:00</span>
     </div>
   </header>
@@ -151,6 +152,7 @@ packages = ["numpy", "matplotlib"]
           <div class="legend-item"><span class="legend-swatch" style="background:#ff5500"></span>Vehicle (active)</div>
           <div class="legend-item"><span class="legend-swatch" style="background:#ffe600"></span>Animal (active)</div>
           <div class="legend-item"><span class="legend-swatch" style="border:2px dashed #00e5ff;background:transparent"></span>TDOA estimated</div>
+          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #c060ff;background:transparent"></span>Kalman filtered</div>
           <div class="legend-item"><span class="legend-swatch" style="background:#ffffff"></span>True target</div>
         </div>
       </div>
@@ -236,45 +238,7 @@ packages = ["numpy", "matplotlib"]
 
   </div><!-- /#main-layout -->
 
-  <!-- SYSTEM INTERNALS — full-width panel with formulas -->
-  <div id="internals-strip">
-    <div class="intern-col">
-      <div class="intern-title">① Signal Model</div>
-      <div class="intern-formula">s(t) = A&middot;e<sup>&minus;&alpha;d</sup>&middot;f<sub>type</sub>(t) + &eta;(t)</div>
-      <div class="intern-vars">
-        <span>&alpha; = 0.12 m<sup>&minus;1</sup> &nbsp;(soil attenuation)</span>
-        <span class="live" id="iv-decay">d = &mdash; m &nbsp;|&nbsp; decay A = &mdash;</span>
-        <span class="live" id="iv-energy">Signal energy E = &mdash;</span>
-      </div>
-    </div>
-    <div class="intern-col">
-      <div class="intern-title">② TDOA Measurement</div>
-      <div class="intern-formula">&Delta;t<sub>ij</sub> = (d<sub>i</sub> &minus; d<sub>j</sub>) / v<sub>s</sub></div>
-      <div class="intern-vars">
-        <span class="live" id="iv-wave">v&nbsp;= &mdash; m/s &nbsp;|&nbsp; &lambda; = v/f = &mdash; m</span>
-        <span class="live" id="iv-ref">ref sensor: S(&mdash;,&mdash;) | nearest</span>
-        <span class="live" id="iv-tmax">max |&Delta;t| = &mdash; ms</span>
-      </div>
-    </div>
-    <div class="intern-col">
-      <div class="intern-title">③ Grid-Search Localisation</div>
-      <div class="intern-formula">min<sub>(x,y)</sub> &Sigma;(&Delta;t<sub>ij</sub> &minus; &Delta;t&#x302;<sub>ij</sub>)&sup2;</div>
-      <div class="intern-vars">
-        <span class="live" id="iv-grid">search: 18&times;12 = 216 pts</span>
-        <span class="live" id="iv-est">est: (&mdash;,&mdash;) &rarr; (&mdash; m, &mdash; m)</span>
-        <span class="live" id="iv-err">position error: &mdash; m</span>
-      </div>
-    </div>
-    <div class="intern-col">
-      <div class="intern-title">④ Signal Quality</div>
-      <div class="intern-formula">SNR = 10&thinsp;log<sub>10</sub>(P<sub>sig</sub>/&sigma;&sup2;)</div>
-      <div class="intern-vars">
-        <span class="live" id="iv-snr">SNR = &mdash; dB</span>
-        <span class="live" id="iv-freq">f<sub>dom</sub> = &mdash; Hz &nbsp;|&nbsp; T = 1/f = &mdash; ms</span>
-        <span class="live" id="iv-fs">f<sub>s</sub> = &mdash; Hz &nbsp;|&nbsp; N = &mdash; samples</span>
-      </div>
-    </div>
-  </div>
+
 
   <!-- CLASSIFICATION BANNER ───────────────────────────── -->
   <div id="classification-section" class="hidden">
@@ -288,18 +252,55 @@ packages = ["numpy", "matplotlib"]
     </div>
   </div>
 
-  <!-- IMPROVEMENT SUGGESTIONS ─────────────────────────── -->
-  <div id="suggestions">
-    <span>💡 <b>Suggested improvements:</b></span>
-    <span>① Kalman filter on TDOA estimates to smooth track</span>
-    <span>② ML-based classifier (SVM/CNN on raw waveform) replacing rule-based</span>
-    <span>③ Beamforming (delay-and-sum) for higher directional resolution</span>
-    <span>④ Multi-target tracking with data association (Hungarian algorithm)</span>
-    <span>⑤ Adaptive noise floor estimation per sensor</span>
-    <span>⑥ Real sensor hardware integration via WebSocket / MQTT</span>
-    <span>⑦ 3D seismic wave simulation with Rayleigh / Love wave separation</span>
-  </div>
 
+  <!-- SYSTEM INTERNALS MODAL -->
+  <div id="internals-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">&#9881; System Internals &mdash; Live Computed Values</span>
+        <button class="modal-close" onclick="toggleInternals()">&#10005; Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="intern-col">
+          <div class="intern-title">&#9312; Signal Model</div>
+          <div class="intern-formula">s(t) = A&middot;e<sup>&minus;&alpha;d</sup>&middot;f<sub>type</sub>(t) + &eta;(t)</div>
+          <div class="intern-vars">
+            <span>&alpha; = 0.12 m<sup>&minus;1</sup> (soil attenuation)</span>
+            <span class="live" id="iv-decay">d = &mdash; m | decay A = &mdash;</span>
+            <span class="live" id="iv-energy">Signal energy E = &mdash;</span>
+          </div>
+        </div>
+        <div class="intern-col">
+          <div class="intern-title">&#9313; TDOA Measurement</div>
+          <div class="intern-formula">&Delta;t<sub>ij</sub> = (d<sub>i</sub> &minus; d<sub>j</sub>) / v<sub>s</sub></div>
+          <div class="intern-vars">
+            <span class="live" id="iv-wave">v = &mdash; m/s | &lambda; = v/f = &mdash; m</span>
+            <span class="live" id="iv-ref">ref sensor: S(&mdash;,&mdash;) | nearest</span>
+            <span class="live" id="iv-tmax">max |&Delta;t| = &mdash; ms</span>
+          </div>
+        </div>
+        <div class="intern-col">
+          <div class="intern-title">&#9314; Grid-Search Localisation</div>
+          <div class="intern-formula">min<sub>(x,y)</sub> &Sigma;(&Delta;t<sub>ij</sub> &minus; &Delta;t&#x302;<sub>ij</sub>)&sup2;</div>
+          <div class="intern-vars">
+            <span class="live" id="iv-grid">search: 18&times;12 = 216 pts</span>
+            <span class="live" id="iv-est">est: (&mdash;,&mdash;) &rarr; (&mdash; m, &mdash; m)</span>
+            <span class="live" id="iv-err">position error: &mdash; m</span>
+          </div>
+        </div>
+        <div class="intern-col">
+          <div class="intern-title">&#9315; Signal Quality</div>
+          <div class="intern-formula">SNR = 10&thinsp;log<sub>10</sub>(P<sub>sig</sub>/&sigma;&sup2;)</div>
+          <div class="intern-vars">
+            <span class="live" id="iv-snr">SNR = &mdash; dB</span>
+            <span class="live" id="iv-freq">f<sub>dom</sub> = &mdash; Hz | T = 1/f = &mdash; ms</span>
+            <span class="live" id="iv-fs">f<sub>s</sub> = &mdash; Hz | N = &mdash; samples</span>
+            <span class="live" id="iv-noise-floor">noise floor = &mdash;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div><!-- /#app-container -->
 
 
@@ -372,9 +373,37 @@ const sim = {
   wfTime:     0,
   animalBurst:0,
   lastResult: null,
+  kalmanEst:  { gx: -1, gy: -1 },
 };
 
 function el(id) { return document.getElementById(id); }
+
+// ── System Internals modal toggle ─────────────────────────
+window.toggleInternals = function() {
+  el('internals-modal').classList.toggle('hidden');
+};
+
+// ── Kalman filter for TDOA position smoothing ─────────────
+const kalman = { x: 10, y: 7, vx: 0, vy: 0, init: false };
+function kalmanUpdate(measX, measY, dt) {
+  if (!kalman.init) {
+    kalman.x = measX; kalman.y = measY;
+    kalman.vx = 0; kalman.vy = 0;
+    kalman.init = true;
+  }
+  // Constant-velocity prediction
+  const K = 0.3; // Kalman gain (simplified scalar)
+  const predX = kalman.x + kalman.vx * dt;
+  const predY = kalman.y + kalman.vy * dt;
+  // Update: blend prediction & measurement
+  const innX = measX - predX;
+  const innY = measY - predY;
+  kalman.x  = predX + K * innX;
+  kalman.y  = predY + K * innY;
+  kalman.vx = kalman.vx + (K / dt) * innX * 0.4;
+  kalman.vy = kalman.vy + (K / dt) * innY * 0.4;
+  return { gx: kalman.x, gy: kalman.y };
+}
 
 // ── Target movement ───────────────────────────────────────
 function updateTarget(dt) {
@@ -455,6 +484,9 @@ async function runPythonAnalysis() {
     const r   = JSON.parse(String(raw));
     sim.estimated.gx   = r.est_gx;
     sim.estimated.gy   = r.est_gy;
+    // Kalman-filtered estimate
+    const kEst = kalmanUpdate(r.est_gx, r.est_gy, sim.ANALYSIS_PERIOD);
+    sim.kalmanEst = kEst;
     sim.fftData  = { freqs: r.fft_freqs, mag: r.fft_mag, passLo: r.pass_lo, passHi: r.pass_hi, domFreq: r.dominant_freq };
     sim.tdoaData = r.sensor_tdoas || null;
     sim.snrDb    = r.snr_db   || 0;
@@ -506,6 +538,7 @@ function updateInternalsStrip(r, wSpd, sRate, noise) {
   const T_ms = (1000/(r.dominant_freq||1)).toFixed(2);
   el('iv-freq').textContent = `f_dom = ${r.dominant_freq.toFixed(2)} Hz  |  T = 1/f = ${T_ms} ms`;
   el('iv-fs').textContent   = `f_s = ${Math.round(sRate)} Hz  |  N = ${Math.round(sRate)} samples`;
+  if (el('iv-noise-floor')) el('iv-noise-floor').textContent = `noise floor = ${(r.noise_floor||0).toFixed(5)}`;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -642,6 +675,26 @@ function drawEstimated() {
   gCtx.shadowColor = color; gCtx.shadowBlur = 8; gCtx.stroke(); gCtx.shadowBlur = 0;
   gCtx.font = 'bold 7px "Share Tech Mono"'; gCtx.fillStyle = color; gCtx.textAlign = 'left';
   gCtx.fillText(`TDOA EST (${e.gx*CELL_M}m, ${e.gy*CELL_M}m)`, cx + 13, cy - 4);
+}
+
+function drawKalmanEstimate() {
+  const e = sim.kalmanEst;
+  if (!e || e.gx < 0) return;
+  const gx = Math.max(0, Math.min(COLS - 1, e.gx));
+  const gy = Math.max(0, Math.min(ROWS - 1, e.gy));
+  const { cx, cy } = toPixel(gx, gy);
+  const color = '#c060ff';
+  // Small purple diamond with glow
+  const D = 7;
+  gCtx.beginPath();
+  gCtx.moveTo(cx, cy-D); gCtx.lineTo(cx+D, cy);
+  gCtx.lineTo(cx, cy+D); gCtx.lineTo(cx-D, cy); gCtx.closePath();
+  gCtx.fillStyle = color + '30'; gCtx.strokeStyle = color; gCtx.lineWidth = 1.4;
+  gCtx.fill();
+  gCtx.shadowColor = color; gCtx.shadowBlur = 8; gCtx.stroke(); gCtx.shadowBlur = 0;
+  gCtx.font = 'bold 7px "Share Tech Mono"'; gCtx.fillStyle = color; gCtx.textAlign = 'right';
+  gCtx.fillText(`KF (${(gx*CELL_M).toFixed(0)}m,${(gy*CELL_M).toFixed(0)}m)`, cx - 13, cy - 4);
+  gCtx.textAlign = 'left';
 }
 
 function drawTarget() {
@@ -1118,6 +1171,7 @@ function mainLoop(timestamp) {
   if (sim.running) {
     drawTrail();
     drawEstimated();
+    drawKalmanEstimate();
     drawTarget();
     drawSensorTDOALabels(activeSet, color);
   }
@@ -1147,6 +1201,8 @@ window.startSimulation = function(trigger) {
   sim.fftData = null; sim.tdoaData = null;
   sim.estimated = { gx:-1, gy:-1 }; sim.lastResult = null;
   sim.wfTime = 0; sim.animalBurst = 0;
+  sim.kalmanEst = { gx: -1, gy: -1 };
+  kalman.init = false;
   sim.target.gx = 2 + Math.random() * (COLS-4);
   sim.target.gy = 2 + Math.random() * (ROWS-4);
   const angle = Math.random() * 6.283;
@@ -1171,6 +1227,7 @@ window.resetSimulation = function() {
   sim.analysisTimer = 0; sim.targetTrail = []; sim.posHistory = [];
   sim.fftData = null; sim.tdoaData = null;
   sim.estimated = { gx:-1, gy:-1 }; sim.lastResult = null; sim.wfBuf.fill(0);
+  sim.kalmanEst = { gx: -1, gy: -1 }; kalman.init = false;
   el('classification-section').classList.add('hidden');
   ['metric-freq','metric-conf','metric-x','metric-y',
    'metric-snr','metric-err','metric-lambda','metric-period'].forEach(id => {
@@ -1295,6 +1352,17 @@ def fft_analysis(sig, sample_rate, trigger_type):
         dom_freq = 0.0
     return freq.tolist(), fft.tolist(), dom_freq, pass_lo, pass_hi
 
+def adaptive_noise_floor(sig, window=50):
+    """Estimate noise floor as 15th-percentile RMS across overlapping windows."""
+    n = len(sig)
+    if n < window:
+        return float(np.sqrt(np.mean(sig**2)))
+    rms_vals = [
+        float(np.sqrt(np.mean(sig[i:i+window]**2)))
+        for i in range(0, n - window, window // 2)
+    ]
+    return float(np.percentile(rms_vals, 15))
+
 def classify_signal(dominant_freq, trigger_type):
     rules = [
         {'label':'Human Footsteps', 'icon':'🚶', 'color':'#00ffaa', 'lo':0.5, 'hi':3.0, 'true':'human'},
@@ -1363,6 +1431,7 @@ def py_analyse_js(trigger_type_js, src_gx_js, src_gy_js,
         label, color, icon, conf = classify_signal(dom_freq, trigger)
         est_gx, est_gy, sensor_tdoas = tdoa_estimate(
             src_gx, src_gy, noise, wave_speed, sample_rate)
+        noise_floor = adaptive_noise_floor(sig)
 
         return json.dumps({
             'est_gx':        est_gx,
@@ -1379,6 +1448,7 @@ def py_analyse_js(trigger_type_js, src_gx_js, src_gy_js,
             'snr_db':        snr_db,
             'signal_energy': signal_energy,
             'sensor_tdoas':  sensor_tdoas,
+            'noise_floor':   noise_floor,
         })
     except Exception as ex:
         return json.dumps({
