@@ -148,12 +148,14 @@ packages = ["numpy", "matplotlib"]
         <div class="section-label">LEGEND</div>
         <div class="legend">
           <div class="legend-item"><span class="legend-swatch" style="background:#1e4a7a"></span>Idle sensor</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#00ffaa"></span>Human (active)</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#00ffaa"></span>Human (active sensors)</div>
           <div class="legend-item"><span class="legend-swatch" style="background:#ff5500"></span>Vehicle (active)</div>
           <div class="legend-item"><span class="legend-swatch" style="background:#ffe600"></span>Animal (active)</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#ff2255"></span>⚠ Intruder (human mode)</div>
+          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #00d4ff;background:#00d4ff33"></span>◈ Soldier — pursuer</div>
+          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #ffaa00;background:#ffaa0033"></span>▲ Soldiers — intercept</div>
           <div class="legend-item"><span class="legend-swatch" style="border:2px dashed #00e5ff;background:transparent"></span>TDOA estimated</div>
           <div class="legend-item"><span class="legend-swatch" style="border:2px solid #c060ff;background:transparent"></span>Kalman filtered</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#ffffff"></span>True target</div>
         </div>
       </div>
 
@@ -345,13 +347,16 @@ const CELL_M = 5;      // metres per grid cell
 
 // Neon palette (matches CSS variables)
 const NEON = {
-  human:   '#00ffbb',
-  vehicle: '#ff5500',
-  animal:  '#ffe600',
-  cyan:    '#00d4ff',
-  purple:  '#c060ff',
-  white:   '#ffffff',
-  dimGrid: 'rgba(0,212,255,0.08)',
+  human:     '#00ffbb',
+  vehicle:   '#ff5500',
+  animal:    '#ffe600',
+  cyan:      '#00d4ff',
+  purple:    '#c060ff',
+  white:     '#ffffff',
+  dimGrid:   'rgba(0,212,255,0.08)',
+  intruder:  '#ff2255',  // red  — intruder
+  pursuer:   '#00d4ff',  // cyan — pursuing soldier
+  intercept: '#ffaa00',  // amber — intercept soldiers
 };
 
 const gridCanvas = document.getElementById('sim-canvas');
@@ -393,6 +398,11 @@ const sim = {
   animalBurst:0,
   lastResult: null,
   kalmanEst:  { gx: -1, gy: -1 },
+  // Human-mode tactical units
+  intruder:   null,  // { gx, gy, vx, vy, perturbTimer, trail[] }
+  pursuer:    null,  // { gx, gy, vx, vy }  — active pursuing soldier
+  interceptors: [],  // [{ gx, gy, targetGx, targetGy }]  — 3 soldiers at predicted positions
+  tacticalMsg: '',   // direction instruction for the pursuer
 };
 
 function el(id) { return document.getElementById(id); }
@@ -494,6 +504,111 @@ function kalmanUpdate(measX, measY, dt) {
   return { gx: kalman.x, gy: kalman.y };
 }
 
+// ── Human-mode: intruder & soldier updates ───────────────
+function initHumanUnits() {
+  // Intruder starts at a random inner position
+  const ix = 3 + Math.floor(Math.random() * (COLS - 6));
+  const iy = 3 + Math.floor(Math.random() * (ROWS - 6));
+  const iAngle = Math.random() * 6.283;
+  sim.intruder = { gx: ix, gy: iy, vx: Math.cos(iAngle), vy: Math.sin(iAngle), perturbTimer: 0, trail: [] };
+
+  // Pursuer starts near a perimeter corner
+  const corners = [[2,2],[COLS-3,2],[2,ROWS-3],[COLS-3,ROWS-3]];
+  const c = corners[Math.floor(Math.random()*4)];
+  sim.pursuer = { gx: c[0], gy: c[1], vx: 0, vy: 0 };
+
+  // 3 intercept soldiers start at other corners / edges
+  sim.interceptors = [
+    { gx: 5,         gy: Math.round(ROWS/2), targetGx: 10, targetGy: 7 },
+    { gx: COLS-6,    gy: 2,                  targetGx: 10, targetGy: 7 },
+    { gx: Math.round(COLS/2), gy: ROWS-3,   targetGx: 10, targetGy: 7 },
+  ];
+}
+
+function updateHumanUnits(dt) {
+  if (sim.trigger !== 'human') return;
+  const speed   = parseFloat(el('s-tspeed').value) * 0.9; // intruder speed
+  const soldSpd = parseFloat(el('s-tspeed').value) * 0.75; // soldier speed (slower, realistic)
+
+  const intr = sim.intruder;
+  const purs = sim.pursuer;
+  if (!intr || !purs) return;
+
+  // ── Move intruder (same bounce/perturb logic as target) ──
+  const imag = Math.sqrt(intr.vx*intr.vx + intr.vy*intr.vy) || 1;
+  intr.gx += (intr.vx/imag)*speed*dt;
+  intr.gy += (intr.vy/imag)*speed*dt;
+  if (intr.gx < 1)        { intr.gx = 1;        intr.vx =  Math.abs(intr.vx); }
+  if (intr.gx > COLS - 2) { intr.gx = COLS - 2; intr.vx = -Math.abs(intr.vx); }
+  if (intr.gy < 1)        { intr.gy = 1;        intr.vy =  Math.abs(intr.vy); }
+  if (intr.gy > ROWS - 2) { intr.gy = ROWS - 2; intr.vy = -Math.abs(intr.vy); }
+  intr.perturbTimer += dt;
+  if (intr.perturbTimer > 1.2 + Math.random()*1.8) {
+    intr.perturbTimer = 0;
+    const ang = Math.atan2(intr.vy, intr.vx) + (Math.random()-0.5)*Math.PI*0.8;
+    intr.vx = Math.cos(ang); intr.vy = Math.sin(ang);
+  }
+  // Trail
+  const lt = intr.trail[intr.trail.length-1];
+  if (!lt || (intr.gx-lt.gx)**2+(intr.gy-lt.gy)**2 > 0.04) {
+    intr.trail.push({ gx: intr.gx, gy: intr.gy });
+    if (intr.trail.length > 60) intr.trail.shift();
+  }
+
+  // ── Move pursuer toward intruder ─────────────────────────
+  const pdx = intr.gx - purs.gx;
+  const pdy = intr.gy - purs.gy;
+  const pdist = Math.sqrt(pdx*pdx + pdy*pdy);
+  if (pdist > 0.3) {
+    purs.gx += (pdx/pdist)*soldSpd*dt;
+    purs.gy += (pdy/pdist)*soldSpd*dt;
+    purs.vx = pdx/pdist; purs.vy = pdy/pdist;
+  }
+
+  // ── Tactical direction instruction ───────────────────────
+  // Compare intruder bearing vs pursuer's current heading
+  const bearingToIntruder = Math.atan2(pdy, pdx);
+  const currentHeading    = Math.atan2(purs.vy, purs.vx);
+  let angleDiff = bearingToIntruder - currentHeading;
+  // Normalise to [-PI, PI]
+  while (angleDiff >  Math.PI) angleDiff -= 2*Math.PI;
+  while (angleDiff < -Math.PI) angleDiff += 2*Math.PI;
+  if (pdist < 1.5) {
+    sim.tacticalMsg = '🎯 TARGET ACQUIRED — MOVE IN';
+  } else if (Math.abs(angleDiff) < 0.25) {
+    sim.tacticalMsg = '▲ STRAIGHT — maintain pursuit';
+  } else if (angleDiff > 0) {
+    const deg = Math.round((angleDiff * 180)/Math.PI);
+    sim.tacticalMsg = `↷ TURN RIGHT ${deg}° — intercept imminent`;
+  } else {
+    const deg = Math.round((-angleDiff * 180)/Math.PI);
+    sim.tacticalMsg = `↶ TURN LEFT ${deg}° — cut off escape route`;
+  }
+
+  // ── Update intercept soldiers → predicted future positions ─
+  // Use Kalman velocity to project intruder ahead in time
+  const vMag = Math.sqrt(intr.vx*intr.vx + intr.vy*intr.vy) || 1;
+  const offsets = [1.5, 3.0, 5.0]; // seconds ahead
+  sim.interceptors.forEach((sol, idx) => {
+    const tAhead  = offsets[idx];
+    let predGx = intr.gx + (intr.vx/vMag)*speed*tAhead;
+    let predGy = intr.gy + (intr.vy/vMag)*speed*tAhead;
+    // Clamp prediction inside field
+    predGx = Math.max(1, Math.min(COLS-2, predGx));
+    predGy = Math.max(1, Math.min(ROWS-2, predGy));
+    sol.targetGx = predGx;
+    sol.targetGy = predGy;
+    // Move soldier toward predicted position
+    const sdx = sol.targetGx - sol.gx;
+    const sdy = sol.targetGy - sol.gy;
+    const sdist = Math.sqrt(sdx*sdx + sdy*sdy);
+    if (sdist > 0.4) {
+      sol.gx += (sdx/sdist)*soldSpd*dt;
+      sol.gy += (sdy/sdist)*soldSpd*dt;
+    }
+  });
+}
+
 // ── Target movement ───────────────────────────────────────
 function updateTarget(dt) {
   const speed = parseFloat(el('s-tspeed').value);
@@ -523,8 +638,10 @@ function updateWaveformBuffer(dt) {
   if (!sim.running) return;
   const fs    = parseFloat(el('s-srate').value);
   const noise = parseFloat(el('s-noise').value);
+  // In human mode, intruder is the seismic source (footsteps)
+  const src = (sim.trigger === 'human' && sim.intruder) ? sim.intruder : sim.target;
   const nearDist = Math.min(...SENSORS.map(s =>
-    Math.sqrt((s.x - sim.target.gx) ** 2 + (s.y - sim.target.gy) ** 2)));
+    Math.sqrt((s.x - src.gx) ** 2 + (s.y - src.gy) ** 2)));
   const decay = Math.exp(-nearDist * 0.12);
   const count = Math.max(1, Math.round(fs * dt));
   for (let i = 0; i < count; i++) {
@@ -566,8 +683,10 @@ async function runPythonAnalysis() {
   const noise  = parseFloat(el('s-noise').value);
   const wSpd   = parseFloat(el('s-wspeed').value);
   const sRate  = parseFloat(el('s-srate').value);
-  const srcGx  = Math.round(Math.max(1, Math.min(COLS - 2, sim.target.gx)));
-  const srcGy  = Math.round(Math.max(1, Math.min(ROWS - 2, sim.target.gy)));
+  // In human mode, intruder is the seismic source
+  const seismicSrc = (sim.trigger === 'human' && sim.intruder) ? sim.intruder : sim.target;
+  const srcGx  = Math.round(Math.max(1, Math.min(COLS - 2, seismicSrc.gx)));
+  const srcGy  = Math.round(Math.max(1, Math.min(ROWS - 2, seismicSrc.gy)));
   try {
     const raw = window.pyAnalyse(sim.trigger, srcGx, srcGy, noise, wSpd, sRate);
     const r   = JSON.parse(String(raw));
@@ -786,10 +905,181 @@ function drawKalmanEstimate() {
   gCtx.textAlign = 'left';
 }
 
+// ── Draw intruder (human mode) ───────────────────────────
+function drawIntruder() {
+  const intr = sim.intruder;
+  if (!intr) return;
+  const { cx, cy } = toPixel(intr.gx, intr.gy);
+  const color = NEON.intruder; // red
+  const t = sim.elapsed;
+
+  // Trail
+  for (let i = 1; i < intr.trail.length; i++) {
+    const alpha = (i / intr.trail.length) * 0.5;
+    const { cx: x1, cy: y1 } = toPixel(intr.trail[i-1].gx, intr.trail[i-1].gy);
+    const { cx: x2, cy: y2 } = toPixel(intr.trail[i].gx,   intr.trail[i].gy);
+    gCtx.beginPath(); gCtx.moveTo(x1,y1); gCtx.lineTo(x2,y2);
+    gCtx.strokeStyle = color + Math.round(alpha*255).toString(16).padStart(2,'0');
+    gCtx.lineWidth = 1.8; gCtx.stroke();
+  }
+
+  // Pulsing glow
+  const pR = 16 + 4*Math.sin(t*8);
+  const gr = gCtx.createRadialGradient(cx,cy,2,cx,cy,pR);
+  gr.addColorStop(0, color+'dd'); gr.addColorStop(1, color+'00');
+  gCtx.fillStyle = gr; gCtx.beginPath(); gCtx.arc(cx,cy,pR,0,6.283); gCtx.fill();
+
+  // Core dot
+  gCtx.shadowColor = color; gCtx.shadowBlur = 14;
+  gCtx.beginPath(); gCtx.arc(cx,cy,6,0,6.283);
+  gCtx.fillStyle = '#ffffff'; gCtx.fill();
+  gCtx.shadowBlur = 0;
+  gCtx.beginPath(); gCtx.arc(cx,cy,10,0,6.283);
+  gCtx.strokeStyle = color; gCtx.lineWidth = 2.5; gCtx.stroke();
+
+  // Label
+  const spd = parseFloat(el('s-tspeed').value);
+  gCtx.font = 'bold 7px "Share Tech Mono"'; gCtx.fillStyle = color; gCtx.textAlign = 'left';
+  gCtx.fillText(`⚠ INTRUDER (${(intr.gx*CELL_M).toFixed(0)}m,${(intr.gy*CELL_M).toFixed(0)}m)`, cx+13, cy-4);
+  gCtx.textAlign = 'left';
+}
+
+// ── Draw pursuing soldier ─────────────────────────────────
+function drawPursuer() {
+  const purs = sim.pursuer;
+  if (!purs) return;
+  const { cx, cy } = toPixel(purs.gx, purs.gy);
+  const color = NEON.pursuer; // cyan
+  const t = sim.elapsed;
+
+  // Glow
+  gCtx.shadowColor = color; gCtx.shadowBlur = 10;
+  // Pentagon shape
+  gCtx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a = (i * 2 * Math.PI / 5) - Math.PI/2;
+    const px = cx + 9*Math.cos(a); const py = cy + 9*Math.sin(a);
+    i === 0 ? gCtx.moveTo(px,py) : gCtx.lineTo(px,py);
+  }
+  gCtx.closePath();
+  gCtx.fillStyle = color+'44'; gCtx.strokeStyle = color; gCtx.lineWidth = 2;
+  gCtx.fill(); gCtx.stroke();
+  gCtx.shadowBlur = 0;
+
+  // Direction arrow toward intruder
+  if (sim.intruder) {
+    const dx = sim.intruder.gx - purs.gx;
+    const dy = sim.intruder.gy - purs.gy;
+    const dist = Math.sqrt(dx*dx+dy*dy) || 1;
+    const aLen = Math.min(dist*CELL*0.4, 26);
+    const ax = (dx/dist)*aLen; const ay = (dy/dist)*aLen;
+    gCtx.beginPath(); gCtx.moveTo(cx,cy); gCtx.lineTo(cx+ax,cy+ay);
+    gCtx.strokeStyle = color; gCtx.lineWidth = 1.5;
+    gCtx.setLineDash([3,3]); gCtx.stroke(); gCtx.setLineDash([]);
+    // Arrowhead
+    const ha = Math.atan2(ay,ax);
+    gCtx.beginPath();
+    gCtx.moveTo(cx+ax,cy+ay);
+    gCtx.lineTo(cx+ax-6*Math.cos(ha-0.4),cy+ay-6*Math.sin(ha-0.4));
+    gCtx.lineTo(cx+ax-6*Math.cos(ha+0.4),cy+ay-6*Math.sin(ha+0.4));
+    gCtx.closePath(); gCtx.fillStyle = color; gCtx.fill();
+  }
+
+  // Label
+  gCtx.font = 'bold 7px "Share Tech Mono"'; gCtx.fillStyle = color; gCtx.textAlign = 'right';
+  gCtx.fillText(`◈ SOLDIER-1 (${(purs.gx*CELL_M).toFixed(0)}m,${(purs.gy*CELL_M).toFixed(0)}m)`, cx-12, cy-5);
+  gCtx.textAlign = 'left';
+}
+
+// ── Draw intercept soldiers ───────────────────────────────
+function drawInterceptors() {
+  const labels = ['S-2','S-3','S-4'];
+  const offsets = ['1.5s','3.0s','5.0s'];
+  sim.interceptors.forEach((sol, idx) => {
+    const { cx, cy }   = toPixel(sol.gx, sol.gy);
+    const { cx: tx, cy: ty } = toPixel(sol.targetGx, sol.targetGy);
+    const color = NEON.intercept; // amber
+
+    // Line from soldier to predicted intercept point (dashed)
+    gCtx.beginPath(); gCtx.moveTo(cx,cy); gCtx.lineTo(tx,ty);
+    gCtx.strokeStyle = color+'66'; gCtx.lineWidth = 0.8;
+    gCtx.setLineDash([4,4]); gCtx.stroke(); gCtx.setLineDash([]);
+
+    // Predicted position marker (hollow diamond)
+    const D = 7;
+    gCtx.beginPath();
+    gCtx.moveTo(tx,ty-D); gCtx.lineTo(tx+D,ty); gCtx.lineTo(tx,ty+D); gCtx.lineTo(tx-D,ty); gCtx.closePath();
+    gCtx.strokeStyle = color+'99'; gCtx.lineWidth = 1;
+    gCtx.setLineDash([2,2]); gCtx.stroke(); gCtx.setLineDash([]);
+    gCtx.font = '6px "Share Tech Mono"'; gCtx.fillStyle = color+'aa'; gCtx.textAlign = 'center';
+    gCtx.fillText(`+${offsets[idx]}`, tx, ty-9);
+
+    // Soldier triangle
+    gCtx.shadowColor = color; gCtx.shadowBlur = 8;
+    gCtx.beginPath();
+    gCtx.moveTo(cx, cy-8);
+    gCtx.lineTo(cx+7, cy+5);
+    gCtx.lineTo(cx-7, cy+5);
+    gCtx.closePath();
+    gCtx.fillStyle = color+'55'; gCtx.strokeStyle = color; gCtx.lineWidth = 1.8;
+    gCtx.fill(); gCtx.stroke();
+    gCtx.shadowBlur = 0;
+
+    // Label
+    gCtx.font = 'bold 6px "Share Tech Mono"'; gCtx.fillStyle = color; gCtx.textAlign = 'left';
+    gCtx.fillText(`${labels[idx]} (${(sol.gx*CELL_M).toFixed(0)}m,${(sol.gy*CELL_M).toFixed(0)}m)`, cx+10, cy+3);
+    gCtx.textAlign = 'left';
+  });
+}
+
+// ── Tactical HUD overlay (direction text box) ─────────────
+function drawTacticalHUD() {
+  if (!sim.tacticalMsg || sim.trigger !== 'human') return;
+  const W = gridCanvas.width;
+  // Background pill at top-center
+  const msg = sim.tacticalMsg;
+  gCtx.font = 'bold 9px "Share Tech Mono"';
+  const tw = gCtx.measureText(msg).width;
+  const px = W/2 - tw/2 - 10; const py = 6;
+  const pw = tw + 20; const ph = 16;
+  gCtx.fillStyle = 'rgba(0,8,20,0.82)';
+  gCtx.beginPath();
+  gCtx.roundRect ? gCtx.roundRect(px,py,pw,ph,4) : gCtx.rect(px,py,pw,ph);
+  gCtx.fill();
+  const isAcquired = msg.startsWith('🎯');
+  gCtx.strokeStyle = isAcquired ? NEON.intruder : NEON.pursuer;
+  gCtx.lineWidth = 1;
+  gCtx.beginPath();
+  gCtx.roundRect ? gCtx.roundRect(px,py,pw,ph,4) : gCtx.rect(px,py,pw,ph);
+  gCtx.stroke();
+  gCtx.fillStyle = isAcquired ? NEON.intruder : NEON.pursuer;
+  gCtx.textAlign = 'center'; gCtx.fillText(msg, W/2, py+11);
+  gCtx.textAlign = 'left';
+
+  // Second line: intercept readiness
+  const intr = sim.intruder; const purs = sim.pursuer;
+  if (intr && purs) {
+    const pursuerDist = Math.sqrt((purs.gx-intr.gx)**2+(purs.gy-intr.gy)**2)*CELL_M;
+    const readyCount = sim.interceptors.filter(s => {
+      const d = Math.sqrt((s.gx-s.targetGx)**2+(s.gy-s.targetGy)**2);
+      return d < 2;
+    }).length;
+    const sub = `SOLDIER-1 → ${pursuerDist.toFixed(0)}m  |  ${readyCount}/3 intercept positions HELD`;
+    gCtx.font = '7px "Share Tech Mono"';
+    const sw = gCtx.measureText(sub).width;
+    gCtx.fillStyle = 'rgba(0,8,20,0.7)';
+    const spx = W/2-sw/2-8; const spy = py+ph+2;
+    gCtx.fillRect(spx,spy,sw+16,14);
+    gCtx.fillStyle = '#7aaac8'; gCtx.textAlign = 'center';
+    gCtx.fillText(sub, W/2, spy+10);
+    gCtx.textAlign = 'left';
+  }
+}
+
 function drawTarget() {
   if (!sim.running) return;
   const { cx, cy } = toPixel(sim.target.gx, sim.target.gy);
-  const color = NEON[sim.trigger] || NEON.cyan;
+  const color = (sim.trigger === 'human') ? '#888888' : (NEON[sim.trigger] || NEON.cyan); // grey-out in human mode
   const t = sim.elapsed;
   // Pulsing glow
   const pR = 18 + 5 * Math.sin(t * 9);
@@ -1282,13 +1572,23 @@ function mainLoop(timestamp) {
   // Grid canvas
   drawGrid();
   const color = (sim.running && NEON[sim.trigger]) ? NEON[sim.trigger] : '#1e4a7a';
-  const activeSet = sim.running ? nearestSensors(sim.target.gx, sim.target.gy, 8) : new Set();
+  // Active sensors respond to the seismic source (intruder in human mode)
+  const seismicPos = (sim.running && sim.trigger === 'human' && sim.intruder) ? sim.intruder : sim.target;
+  const activeSet = sim.running ? nearestSensors(seismicPos.gx, seismicPos.gy, 8) : new Set();
   drawSensors(activeSet, color);
   if (sim.running) {
     drawTrail();
     drawEstimated();
     drawKalmanEstimate();
-    drawTarget();
+    if (sim.trigger === 'human') {
+      updateHumanUnits(dt);
+      drawIntruder();
+      drawInterceptors();
+      drawPursuer();
+      drawTacticalHUD();
+    } else {
+      drawTarget();
+    }
     drawSensorTDOALabels(activeSet, color);
   }
 
@@ -1324,6 +1624,12 @@ window.startSimulation = function(trigger) {
   const angle = Math.random() * 6.283;
   sim.target.vx = Math.cos(angle); sim.target.vy = Math.sin(angle);
   sim.target.perturbTimer = 0;
+  // Human mode: spawn intruder + soldiers
+  if (trigger === 'human') {
+    initHumanUnits();
+  } else {
+    sim.intruder = null; sim.pursuer = null; sim.interceptors = []; sim.tacticalMsg = '';
+  }
   ['btn-human','btn-vehicle','btn-animal'].forEach(id => el(id).classList.remove('active-trigger'));
   el(`btn-${trigger}`).classList.add('active-trigger');
   const labels = { human:'Human Footsteps', vehicle:'Vehicle', animal:'Animal' };
