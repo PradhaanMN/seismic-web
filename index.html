@@ -200,34 +200,38 @@ packages = ["numpy", "matplotlib"]
       <!-- 4 Mini charts — horizontal strip -->
       <div id="mini-row">
 
-        <div class="mini-panel">
+        <div class="mini-panel" onclick="openChartModal('wf')">
           <div class="mini-panel-header">
             <span class="mini-panel-title">⌇ Waveform s(t)</span>
             <span class="mini-panel-meta" id="wf-meta">amp: —</span>
+            <span class="mini-expand-hint">⛶ expand</span>
           </div>
           <canvas id="wf-canvas" class="mini-canvas"></canvas>
         </div>
 
-        <div class="mini-panel">
+        <div class="mini-panel" onclick="openChartModal('fft')">
           <div class="mini-panel-header">
             <span class="mini-panel-title">≋ FFT |X(f)|</span>
             <span class="mini-panel-meta" id="fft-meta">fdom: —</span>
+            <span class="mini-expand-hint">⛶ expand</span>
           </div>
           <canvas id="fft-canvas" class="mini-canvas"></canvas>
         </div>
 
-        <div class="mini-panel">
+        <div class="mini-panel" onclick="openChartModal('pos')">
           <div class="mini-panel-header">
             <span class="mini-panel-title">◈ Position x(t),y(t)</span>
             <span class="mini-panel-meta" id="pos-meta">t = 0 s</span>
+            <span class="mini-expand-hint">⛶ expand</span>
           </div>
           <canvas id="pos-canvas" class="mini-canvas"></canvas>
         </div>
 
-        <div class="mini-panel">
+        <div class="mini-panel" onclick="openChartModal('tdoa')">
           <div class="mini-panel-header">
             <span class="mini-panel-title">⏱ TDOA Δt</span>
             <span class="mini-panel-meta" id="tdoa-meta">8 nearest</span>
+            <span class="mini-expand-hint">⛶ expand</span>
           </div>
           <canvas id="tdoa-canvas" class="mini-canvas"></canvas>
         </div>
@@ -435,8 +439,8 @@ window.openChartModal = function(type) {
 };
 
 window.closeChartModal = function(evt) {
-  // Allow clicking the overlay backdrop (not the box) to close
-  if (evt && evt.target !== el('chart-modal')) return;
+  // If called with an event (overlay click), only close when clicking the backdrop itself
+  if (evt && evt.currentTarget === el('chart-modal') && evt.target !== el('chart-modal')) return;
   chartModalType = null;
   if (chartModalRAF) { cancelAnimationFrame(chartModalRAF); chartModalRAF = null; }
   el('chart-modal').classList.add('hidden');
