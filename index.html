@@ -1577,7 +1577,7 @@ function mainLoop(timestamp) {
   const activeSet = sim.running ? nearestSensors(seismicPos.gx, seismicPos.gy, 8) : new Set();
   drawSensors(activeSet, color);
   if (sim.running) {
-    drawTrail();
+    if (sim.trigger !== 'human') drawTrail(); // intruder has its own trail
     drawEstimated();
     drawKalmanEstimate();
     if (sim.trigger === 'human') {
