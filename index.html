@@ -191,6 +191,7 @@ packages = ["numpy", "matplotlib"]
         <div class="canvas-toolbar">
           <span class="canvas-toolbar-title">⬡ GEOPHONE FIELD — Live Seismic Array  |  Δt = TDOA relative to ref sensor</span>
           <span id="canvas-coords-display">Hover for coordinates</span>
+          <button class="arena-expand-btn" onclick="openChartModal('arena')">⛶ Expand Arena</button>
         </div>
         <div id="canvas-wrap-inner">
           <canvas id="sim-canvas" width="600" height="420"></canvas>
@@ -403,10 +404,11 @@ window.toggleInternals = function() {
 
 // ── Chart fullscreen modal ─────────────────────────────────
 const CHART_TITLES = {
-  wf:   '⌇ Waveform  s(t)',
-  fft:  '≋ FFT Spectrum  |X(f)|',
-  pos:  '◈ Position vs Time  x(t), y(t)',
-  tdoa: '⏱ TDOA Arrival Times  Δt',
+  wf:    '⌇ Waveform  s(t)',
+  fft:   '≋ FFT Spectrum  |X(f)|',
+  pos:   '◈ Position vs Time  x(t), y(t)',
+  tdoa:  '⏱ TDOA Arrival Times  Δt',
+  arena: '⬡ Geophone Field — Live Seismic Arena',
 };
 let chartModalType = null;
 let chartModalRAF  = null;
@@ -462,10 +464,11 @@ function renderChartModal() {
   // Temporarily swap the canvas into each render function by patching el()
   // Instead, render directly by calling the render functions with an override canvas
   switch (chartModalType) {
-    case 'wf':   renderWaveformTo(cv);   break;
-    case 'fft':  renderFFTTo(cv);        break;
-    case 'pos':  renderPositionChartTo(cv); break;
-    case 'tdoa': renderTDOAChartTo(cv);  break;
+    case 'wf':    renderWaveformTo(cv);      break;
+    case 'fft':   renderFFTTo(cv);           break;
+    case 'pos':   renderPositionChartTo(cv); break;
+    case 'tdoa':  renderTDOAChartTo(cv);     break;
+    case 'arena': renderArenaTo(cv);         break;
   }
 }
 
@@ -822,6 +825,22 @@ function drawTarget() {
   gCtx.textAlign = 'left';
 }
 
+function renderArenaTo(canvas) {
+  const ctx = canvas.getContext('2d');
+  const cw = canvas.width; const ch = canvas.height;
+  ctx.fillStyle = '#040810'; ctx.fillRect(0, 0, cw, ch);
+  if (!gridCanvas || gridCanvas.width < 10) return;
+  // Scale to fit with aspect ratio preserved, centered
+  const scale = Math.min(cw / gridCanvas.width, ch / gridCanvas.height);
+  const offX = Math.round((cw - gridCanvas.width  * scale) / 2);
+  const offY = Math.round((ch - gridCanvas.height * scale) / 2);
+  ctx.save();
+  ctx.translate(offX, offY);
+  ctx.scale(scale, scale);
+  ctx.drawImage(gridCanvas, 0, 0);
+  ctx.restore();
+}
+
 // ═══════════════════════════════════════════════════════════
 // WAVEFORM CANVAS — with labeled axes
 // ═══════════════════════════════════════════════════════════
@@ -832,14 +851,17 @@ function renderWaveformTo(canvas) {
 
   ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
 
+  // Scale factor: 1× on mini canvas (~280px wide), up to 4× on fullscreen
+  const SF = Math.max(1, Math.min(W / 280, 4));
+
   // Layout margins
-  const ML = 32; // left margin for Y axis
-  const MB = 18; // bottom margin for X axis
+  const ML = Math.round(32 * SF); // left margin for Y axis
+  const MB = Math.round(18 * SF); // bottom margin for X axis
   const PW = W - ML; const PH = H - MB;
   const midY = ML + 0; // N/A, plot starts at ML
 
   if (!sim.running) {
-    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#1e3050';
+    ctx.font = `${Math.round(9*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#3a6080';
     ctx.textAlign = 'center'; ctx.fillText('— awaiting trigger —', W/2, H/2); ctx.textAlign = 'left'; return;
   }
   const color = NEON[sim.trigger] || NEON.cyan;
@@ -849,16 +871,16 @@ function renderWaveformTo(canvas) {
   ctx.strokeRect(ML, 0, PW, PH);
 
   // Y-axis label — rotated "Amplitude"
-  ctx.save(); ctx.translate(9, PH/2); ctx.rotate(-Math.PI/2);
-  ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center';
+  ctx.save(); ctx.translate(Math.round(9*SF), PH/2); ctx.rotate(-Math.PI/2);
+  ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#7aaac8'; ctx.textAlign = 'center';
   ctx.fillText('Amplitude', 0, 0); ctx.restore();
 
   // Y axis ticks & labels: +1.0, +0.5, 0, -0.5, -1.0
   const yLevels = [1.0, 0.5, 0, -0.5, -1.0];
-  ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right';
+  ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.textAlign = 'right';
   yLevels.forEach(v => {
     const y = (PH / 2) - v * (PH / 2) * 0.85;
-    ctx.fillStyle = v === 0 ? '#2a4560' : '#1e3050'; ctx.fillText(v.toFixed(1), ML - 3, y + 3);
+    ctx.fillStyle = v === 0 ? '#7ab0d8' : '#5a8aaa'; ctx.fillText(v.toFixed(1), ML - 3, y + 3);
     ctx.beginPath(); ctx.strokeStyle = v === 0 ? 'rgba(0,180,220,0.25)' : 'rgba(0,180,220,0.08)';
     ctx.lineWidth = v === 0 ? 1 : 0.5;
     ctx.moveTo(ML, y); ctx.lineTo(W, y); ctx.stroke();
@@ -867,7 +889,7 @@ function renderWaveformTo(canvas) {
   // X-axis ticks & label: 0ms … 1500ms (rolling buffer ≈1.5s worth at 200 Hz)
   const fs = parseFloat(el('s-srate').value);
   const bufDurMs = (sim.wfBuf.length / fs) * 1000;
-  ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center'; ctx.font = '7px "Share Tech Mono"';
+  ctx.fillStyle = '#7aaac8'; ctx.textAlign = 'center'; ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`;
   const tSteps = 5;
   for (let i = 0; i <= tSteps; i++) {
     const frac = i / tSteps;
@@ -878,7 +900,7 @@ function renderWaveformTo(canvas) {
     ctx.moveTo(x, 0); ctx.lineTo(x, PH); ctx.stroke();
   }
   // X-axis label "t (ms)"
-  ctx.fillStyle = '#3a5070'; ctx.textAlign = 'right'; ctx.font = '7px "Share Tech Mono"';
+  ctx.fillStyle = '#7aaac8'; ctx.textAlign = 'right'; ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`;
   ctx.fillText('t (ms)', W - 2, H - 5);
 
   // Signal trace
@@ -911,11 +933,12 @@ function renderFFTTo(canvas) {
   if (W < 10 || H < 10) return;
   ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
 
-  const ML = 28; const MB = 17;
+  const SF = Math.max(1, Math.min(W / 280, 4));
+  const ML = Math.round(28 * SF); const MB = Math.round(17 * SF);
   const PW = W - ML; const PH = H - MB;
 
   if (!sim.fftData) {
-    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#1e3050';
+    ctx.font = `${Math.round(9*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#3a6080';
     ctx.textAlign = 'center'; ctx.fillText('— waiting for analysis —', W/2, H/2); ctx.textAlign = 'left'; return;
   }
   const { freqs, mag, passLo, passHi, domFreq } = sim.fftData;
@@ -932,15 +955,15 @@ function renderFFTTo(canvas) {
   ctx.strokeRect(ML, 0, PW, PH);
 
   // Y-axis label "Mag"
-  ctx.save(); ctx.translate(8, PH/2); ctx.rotate(-Math.PI/2);
-  ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center';
+  ctx.save(); ctx.translate(Math.round(8*SF), PH/2); ctx.rotate(-Math.PI/2);
+  ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#7aaac8'; ctx.textAlign = 'center';
   ctx.fillText('Mag', 0, 0); ctx.restore();
 
   // Y axis ticks
-  ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right';
+  ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.textAlign = 'right';
   [0, 0.25, 0.5, 0.75, 1.0].forEach(v => {
     const y = PH - v * PH;
-    ctx.fillStyle = '#1e3050'; ctx.fillText(v.toFixed(2), ML-3, y + 3);
+    ctx.fillStyle = '#5a8aaa'; ctx.fillText(v.toFixed(2), ML-3, y + 3);
     ctx.beginPath(); ctx.strokeStyle = v === 1.0 ? 'rgba(0,180,220,0.12)' : 'rgba(0,180,220,0.07)';
     ctx.lineWidth = 0.5; ctx.moveTo(ML, y); ctx.lineTo(W, y); ctx.stroke();
   });
@@ -955,9 +978,9 @@ function renderFFTTo(canvas) {
     ctx.moveTo(fToX(f), 0); ctx.lineTo(fToX(f), PH); ctx.stroke();
   });
   ctx.setLineDash([]);
-  ctx.font = '6px "Share Tech Mono"'; ctx.fillStyle = color + '88'; ctx.textAlign = 'center';
-  ctx.fillText(`${passLo}Hz`, fToX(pb0), 7);
-  ctx.fillText(`${passHi}Hz`, fToX(pb1), 7);
+  ctx.font = `${Math.round(6*SF)}px "Share Tech Mono"`; ctx.fillStyle = color + 'cc'; ctx.textAlign = 'center';
+  ctx.fillText(`${passLo}Hz`, fToX(pb0), Math.round(9*SF));
+  ctx.fillText(`${passHi}Hz`, fToX(pb1), Math.round(9*SF));
 
   // Spectrum fill — only draw bins within maxFreq
   const visFreqs = freqs.map((f,i) => ({f,m:mag[i]})).filter(d => d.f <= maxFreq);
@@ -979,18 +1002,18 @@ function renderFFTTo(canvas) {
   ctx.beginPath(); ctx.moveTo(dx, 0); ctx.lineTo(dx, PH);
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.3;
   ctx.setLineDash([4,3]); ctx.stroke(); ctx.setLineDash([]);
-  ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-  ctx.fillText(`${domFreq.toFixed(2)} Hz`, dx + 3, 11);
+  ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+  ctx.fillText(`${domFreq.toFixed(2)} Hz`, dx + Math.round(3*SF), Math.round(11*SF));
 
   // X-axis ticks
-  ctx.textAlign = 'center'; ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070';
+  ctx.textAlign = 'center'; ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#7aaac8';
   fTicks.forEach(f => {
     const x = fToX(f);
     ctx.fillText(`${f}`, x, H - 3);
     ctx.beginPath(); ctx.strokeStyle = 'rgba(0,180,220,0.1)'; ctx.lineWidth = 0.5;
     ctx.moveTo(x, 0); ctx.lineTo(x, PH); ctx.stroke();
   });
-  ctx.fillStyle = '#3a5070'; ctx.textAlign = 'right';
+  ctx.fillStyle = '#7aaac8'; ctx.textAlign = 'right';
   ctx.fillText('Freq (Hz)', W - 2, H - 5);
 }
 function renderFFT() { renderFFTTo(el('fft-canvas')); }
@@ -1004,11 +1027,12 @@ function renderPositionChartTo(canvas) {
   if (W < 10 || H < 10) return;
   ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
 
-  const ML = 32; const MB = 14; // margins
+  const SF = Math.max(1, Math.min(W / 280, 4));
+  const ML = Math.round(32 * SF); const MB = Math.round(14 * SF); // margins
   const hist = sim.posHistory;
 
   if (hist.length < 2) {
-    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#1e3050';
+    ctx.font = `${Math.round(9*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#3a6080';
     ctx.textAlign = 'center'; ctx.fillText('— collecting data… —', W/2, H/2); ctx.textAlign = 'left'; return;
   }
 
@@ -1033,22 +1057,22 @@ function renderPositionChartTo(canvas) {
     ctx.strokeRect(ML, yOffset, W - ML, plotH);
 
     // Y-axis label (rotated)
-    ctx.save(); ctx.translate(9, yOffset + plotH/2); ctx.rotate(-Math.PI/2);
-    ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center';
+    ctx.save(); ctx.translate(Math.round(9*SF), yOffset + plotH/2); ctx.rotate(-Math.PI/2);
+    ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#7aaac8'; ctx.textAlign = 'center';
     ctx.fillText(yLabel, 0, 0); ctx.restore();
 
     // Y-axis ticks (0, max/2, max)
-    ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right';
+    ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.textAlign = 'right';
     [0, 0.5, 1.0].forEach(frac => {
       const val = frac * maxM;
       const y = yOffset + plotH - frac * plotH;
-      ctx.fillStyle = '#1e3050'; ctx.fillText(`${val.toFixed(0)}m`, ML-3, y+3);
+      ctx.fillStyle = '#5a8aaa'; ctx.fillText(`${val.toFixed(0)}m`, ML-3, y+3);
       ctx.beginPath(); ctx.strokeStyle = 'rgba(0,180,220,0.07)'; ctx.lineWidth = 0.5;
       ctx.moveTo(ML, y); ctx.lineTo(W, y); ctx.stroke();
     });
 
     // X-axis time ticks
-    ctx.textAlign = 'center'; ctx.font = '7px "Share Tech Mono"'; ctx.fillStyle = '#3a5070';
+    ctx.textAlign = 'center'; ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#7aaac8';
     const tSteps = 4;
     for (let i = 0; i <= tSteps; i++) {
       const frac = i / tSteps;
@@ -1059,7 +1083,7 @@ function renderPositionChartTo(canvas) {
       ctx.moveTo(x, yOffset); ctx.lineTo(x, yOffset + plotH); ctx.stroke();
     }
     if (yOffset > HT/2) {
-      ctx.fillStyle = '#3a5070'; ctx.textAlign = 'right';
+      ctx.fillStyle = '#7aaac8'; ctx.textAlign = 'right';
       ctx.fillText('t (s)', W-2, yOffset + plotH + MB - 3);
     }
 
@@ -1085,21 +1109,21 @@ function renderPositionChartTo(canvas) {
     ctx.stroke(); ctx.setLineDash([]);
 
     // Legend inside top-right of sub-chart
-    const lx = W - 78; const ly = yOffset + 8;
-    ctx.font = '6px "Share Tech Mono"';
-    ctx.fillStyle = trueColor; ctx.fillRect(lx, ly, 14, 1.5); ctx.fillText('TRUE', lx+17, ly+3);
+    const lx = W - Math.round(78*SF); const ly = yOffset + Math.round(8*SF);
+    ctx.font = `${Math.round(6*SF)}px "Share Tech Mono"`;
+    ctx.fillStyle = trueColor; ctx.fillRect(lx, ly, Math.round(14*SF), 1.5); ctx.fillText('TRUE', lx+Math.round(17*SF), ly+3);
     ctx.strokeStyle = estColor; ctx.setLineDash([4,3]);
-    ctx.beginPath(); ctx.moveTo(lx, ly+8); ctx.lineTo(lx+14, ly+8); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = estColor; ctx.fillText('EST', lx+17, ly+11);
+    ctx.beginPath(); ctx.moveTo(lx, ly+Math.round(8*SF)); ctx.lineTo(lx+Math.round(14*SF), ly+Math.round(8*SF)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = estColor; ctx.fillText('EST', lx+Math.round(17*SF), ly+Math.round(11*SF));
   }
 
   // Top half: X position (metres)
   // Y-axis label added inside drawHalf
-  ctx.font = '6px "Share Tech Mono"'; ctx.fillStyle = '#2a4060'; ctx.textAlign = 'left';
-  ctx.fillText('X-coord', ML+3, 8);
+  ctx.font = `${Math.round(6*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#4a6888'; ctx.textAlign = 'left';
+  ctx.fillText('X-coord', ML+3, Math.round(8*SF));
   drawHalf(p => p.tGx, p => p.eGx, XMAX_M, 0, '#00e5ff', '#00ffaa', 'X (m)', `${XMAX_M}m`);
 
-  ctx.fillText('Y-coord', ML+3, HT+8);
+  ctx.fillText('Y-coord', ML+3, HT+Math.round(8*SF));
   drawHalf(p => p.tGy, p => p.eGy, YMAX_M, HT, '#ffe600', '#ff5500', 'Y (m)', `${YMAX_M}m`);
 }
 function renderPositionChart() { renderPositionChartTo(el('pos-canvas')); }
@@ -1114,8 +1138,10 @@ function renderTDOAChartTo(canvas) {
   if (W < 10 || H < 10) return;
   ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
 
+  const SF = Math.max(1, Math.min(W / 280, 4));
+
   if (!sim.tdoaData || sim.tdoaData.length === 0) {
-    ctx.font = '9px "Share Tech Mono"'; ctx.fillStyle = '#1e3050';
+    ctx.font = `${Math.round(9*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#3a6080';
     ctx.textAlign = 'center'; ctx.fillText('— run analysis for TDOA —', W/2, H/2); ctx.textAlign = 'left'; return;
   }
 
@@ -1123,7 +1149,7 @@ function renderTDOAChartTo(canvas) {
   const data = sim.tdoaData.slice(0, 8); // up to 8 sensors
   const N = data.length;
   const rowH = H / (N + 0.5);
-  const LABEL_W = 62; const VAL_W = 46; const DIST_W = 34;
+  const LABEL_W = Math.round(62 * SF); const VAL_W = Math.round(46 * SF); const DIST_W = Math.round(34 * SF);
   const barArea = W - LABEL_W - VAL_W - DIST_W;
   const maxTDOA = Math.max(...data.map(d => Math.abs(d.tdoa_ms)), 0.001);
   const centerX = LABEL_W + barArea / 2;
@@ -1133,17 +1159,17 @@ function renderTDOAChartTo(canvas) {
   ctx.moveTo(centerX, 0); ctx.lineTo(centerX, H); ctx.stroke();
 
   // Scale labels
-  ctx.font = '6px "Share Tech Mono"'; ctx.fillStyle = '#3a5070'; ctx.textAlign = 'center';
+  ctx.font = `${Math.round(6*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#7aaac8'; ctx.textAlign = 'center';
   ctx.fillText('0', centerX, H - 2);
   ctx.fillText(`−${maxTDOA.toFixed(2)}ms`, LABEL_W + 4, H - 2);
   ctx.fillText(`+${maxTDOA.toFixed(2)}ms`, LABEL_W + barArea - 4, H - 2);
 
   // Column headers
-  ctx.fillStyle = '#2a3a52'; ctx.textAlign = 'left';
-  ctx.fillText('SENSOR', 2, 8);
-  ctx.fillStyle = '#2a3a52'; ctx.textAlign = 'right';
-  ctx.fillText('Δt', LABEL_W + barArea + VAL_W - 2, 8);
-  ctx.fillText('dist', W - 2, 8);
+  ctx.fillStyle = '#5a7898'; ctx.textAlign = 'left';
+  ctx.fillText('SENSOR', 2, Math.round(8*SF));
+  ctx.fillStyle = '#5a7898'; ctx.textAlign = 'right';
+  ctx.fillText('Δt', LABEL_W + barArea + VAL_W - 2, Math.round(8*SF));
+  ctx.fillText('dist', W - 2, Math.round(8*SF));
 
   data.forEach((sensor, i) => {
     const y = 14 + (i + 0.5) * ((H - 16) / N);
@@ -1151,15 +1177,15 @@ function renderTDOAChartTo(canvas) {
     const barLen = sensor.tdoa_ms * scaleX;
 
     // Sensor label
-    ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right';
-    ctx.fillStyle = sensor.isRef ? '#ffffff' : '#3a5070';
+    ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.textAlign = 'right';
+    ctx.fillStyle = sensor.isRef ? '#ffffff' : '#7aaac8';
     ctx.fillText(`S(${sensor.gx},${sensor.gy})`, LABEL_W - 3, y + 3);
 
     if (sensor.isRef) {
       // Reference marker
-      ctx.beginPath(); ctx.arc(centerX, y, 4, 0, 6.283);
+      ctx.beginPath(); ctx.arc(centerX, y, Math.round(4*SF), 0, 6.283);
       ctx.fillStyle = '#ffffff'; ctx.fill();
-      ctx.font = '6px "Share Tech Mono"'; ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff';
+      ctx.font = `${Math.round(6*SF)}px "Share Tech Mono"`; ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff';
       ctx.fillText('● REF', LABEL_W + barArea + 3, y + 3);
     } else {
       // Bar
@@ -1173,11 +1199,11 @@ function renderTDOAChartTo(canvas) {
       ctx.strokeRect(barX, y - 4, Math.max(barW, 1.5), 8);
       // TDOA value
       const sign = sensor.tdoa_ms >= 0 ? '+' : '';
-      ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right'; ctx.fillStyle = color;
+      ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.textAlign = 'right'; ctx.fillStyle = color;
       ctx.fillText(`${sign}${sensor.tdoa_ms.toFixed(3)}ms`, LABEL_W+barArea+VAL_W-2, y+3);
     }
     // Distance column
-    ctx.font = '7px "Share Tech Mono"'; ctx.textAlign = 'right'; ctx.fillStyle = '#2a4060';
+    ctx.font = `${Math.round(7*SF)}px "Share Tech Mono"`; ctx.textAlign = 'right'; ctx.fillStyle = '#5a8aaa';
     ctx.fillText(`${sensor.dist_m.toFixed(0)}m`, W - 2, y + 3);
 
     // Horizontal divider
