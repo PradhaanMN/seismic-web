@@ -1020,6 +1020,70 @@ html, body {
 .modal-body .intern-formula { font-size: 0.85rem; }
 .modal-body .intern-vars span { font-size: 0.7rem; }
 
+/* ── Chart fullscreen modal ──────────────────────────────── */
+.chart-modal-box {
+  background: #06090f;
+  border: 1px solid #1a2540;
+  border-radius: 8px;
+  width: 96vw;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 60px rgba(0,212,255,0.15);
+  overflow: hidden;
+}
+.chart-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1a2540;
+  flex-shrink: 0;
+}
+.chart-modal-title {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #00d4ff;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.chart-modal-meta {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+.chart-modal-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 10px;
+}
+#chart-modal-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 1px solid #0a1830;
+  border-radius: 6px;
+}
+
+/* Expand hint on mini-panel hover */
+.mini-panel { cursor: pointer; }
+.mini-expand-hint {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: #2a4060;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+.mini-panel:hover .mini-expand-hint { opacity: 1; color: #00d4ff; }
+.mini-panel:hover { background: #080f1a; }
+
 /* Suggestions footer strip */
 #suggestions {
   display: flex;

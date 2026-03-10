@@ -253,6 +253,20 @@ packages = ["numpy", "matplotlib"]
   </div>
 
 
+  <!-- CHART FULLSCREEN MODAL -->
+  <div id="chart-modal" class="modal-overlay hidden" onclick="closeChartModal(event)">
+    <div class="chart-modal-box">
+      <div class="chart-modal-header">
+        <span class="chart-modal-title" id="chart-modal-title">Chart</span>
+        <span class="chart-modal-meta" id="chart-modal-meta"></span>
+        <button class="modal-close" onclick="closeChartModal()">&#10005; Close</button>
+      </div>
+      <div class="chart-modal-body">
+        <canvas id="chart-modal-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
   <!-- SYSTEM INTERNALS MODAL -->
   <div id="internals-modal" class="modal-overlay hidden">
     <div class="modal-box">
@@ -382,6 +396,74 @@ function el(id) { return document.getElementById(id); }
 window.toggleInternals = function() {
   el('internals-modal').classList.toggle('hidden');
 };
+
+// ── Chart fullscreen modal ─────────────────────────────────
+const CHART_TITLES = {
+  wf:   '⌇ Waveform  s(t)',
+  fft:  '≋ FFT Spectrum  |X(f)|',
+  pos:  '◈ Position vs Time  x(t), y(t)',
+  tdoa: '⏱ TDOA Arrival Times  Δt',
+};
+let chartModalType = null;
+let chartModalRAF  = null;
+
+window.openChartModal = function(type) {
+  chartModalType = type;
+  const modal = el('chart-modal');
+  modal.classList.remove('hidden');
+  el('chart-modal-title').textContent = CHART_TITLES[type] || type;
+  // Size the canvas to its container
+  requestAnimationFrame(() => {
+    const body = modal.querySelector('.chart-modal-body');
+    const cv   = el('chart-modal-canvas');
+    cv.width   = body.clientWidth  - 20;
+    cv.height  = body.clientHeight - 20;
+    renderChartModal();
+  });
+  // Live refresh loop
+  function loop() {
+    if (chartModalType) {
+      // Sync meta text
+      const metaMap = { wf: 'wf-meta', fft: 'fft-meta', pos: 'pos-meta', tdoa: 'tdoa-meta' };
+      const metaEl = el(metaMap[chartModalType]);
+      if (metaEl) el('chart-modal-meta').textContent = metaEl.textContent;
+      renderChartModal();
+      chartModalRAF = requestAnimationFrame(loop);
+    }
+  }
+  chartModalRAF = requestAnimationFrame(loop);
+};
+
+window.closeChartModal = function(evt) {
+  // Allow clicking the overlay backdrop (not the box) to close
+  if (evt && evt.target !== el('chart-modal')) return;
+  chartModalType = null;
+  if (chartModalRAF) { cancelAnimationFrame(chartModalRAF); chartModalRAF = null; }
+  el('chart-modal').classList.add('hidden');
+};
+
+// Close via the × button (no event arg)
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    chartModalType = null;
+    if (chartModalRAF) { cancelAnimationFrame(chartModalRAF); chartModalRAF = null; }
+    el('chart-modal').classList.add('hidden');
+    el('internals-modal').classList.add('hidden');
+  }
+});
+
+function renderChartModal() {
+  const cv = el('chart-modal-canvas');
+  if (!cv || cv.width < 10) return;
+  // Temporarily swap the canvas into each render function by patching el()
+  // Instead, render directly by calling the render functions with an override canvas
+  switch (chartModalType) {
+    case 'wf':   renderWaveformTo(cv);   break;
+    case 'fft':  renderFFTTo(cv);        break;
+    case 'pos':  renderPositionChartTo(cv); break;
+    case 'tdoa': renderTDOAChartTo(cv);  break;
+  }
+}
 
 // ── Kalman filter for TDOA position smoothing ─────────────
 const kalman = { x: 10, y: 7, vx: 0, vy: 0, init: false };
@@ -739,8 +821,8 @@ function drawTarget() {
 // ═══════════════════════════════════════════════════════════
 // WAVEFORM CANVAS — with labeled axes
 // ═══════════════════════════════════════════════════════════
-function renderWaveform() {
-  const c = el('wf-canvas'); const ctx = c.getContext('2d');
+function renderWaveformTo(canvas) {
+  const c = canvas || el('wf-canvas'); const ctx = c.getContext('2d');
   const W = c.width; const H = c.height;
   if (W < 10 || H < 10) return;
 
@@ -812,14 +894,15 @@ function renderWaveform() {
   ctx.lineTo(W, PH/2); ctx.closePath();
   ctx.fillStyle = color + '18'; ctx.fill();
 
-  el('wf-meta').textContent = `amp: ${Math.abs(buf[N-1]).toFixed(4)}  |  σ_noise: ${parseFloat(el('s-noise').value).toFixed(2)}`;
+  if (!canvas) el('wf-meta').textContent = `amp: ${Math.abs(buf[N-1]).toFixed(4)}  |  σ_noise: ${parseFloat(el('s-noise').value).toFixed(2)}`;
 }
+function renderWaveform() { renderWaveformTo(el('wf-canvas')); }
 
 // ═══════════════════════════════════════════════════════════
 // FFT SPECTRUM CANVAS — with labeled axes
 // ═══════════════════════════════════════════════════════════
-function renderFFT() {
-  const c = el('fft-canvas'); const ctx = c.getContext('2d');
+function renderFFTTo(canvas) {
+  const c = canvas || el('fft-canvas'); const ctx = c.getContext('2d');
   const W = c.width; const H = c.height;
   if (W < 10 || H < 10) return;
   ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
@@ -906,12 +989,13 @@ function renderFFT() {
   ctx.fillStyle = '#3a5070'; ctx.textAlign = 'right';
   ctx.fillText('Freq (Hz)', W - 2, H - 5);
 }
+function renderFFT() { renderFFTTo(el('fft-canvas')); }
 
 // ═══════════════════════════════════════════════════════════
 // POSITION vs TIME CANVAS — X(t) and Y(t), labeled axes
 // ═══════════════════════════════════════════════════════════
-function renderPositionChart() {
-  const c = el('pos-canvas'); const ctx = c.getContext('2d');
+function renderPositionChartTo(canvas) {
+  const c = canvas || el('pos-canvas'); const ctx = c.getContext('2d');
   const W = c.width; const H = c.height;
   if (W < 10 || H < 10) return;
   ctx.fillStyle = '#040c18'; ctx.fillRect(0, 0, W, H);
@@ -1014,12 +1098,13 @@ function renderPositionChart() {
   ctx.fillText('Y-coord', ML+3, HT+8);
   drawHalf(p => p.tGy, p => p.eGy, YMAX_M, HT, '#ffe600', '#ff5500', 'Y (m)', `${YMAX_M}m`);
 }
+function renderPositionChart() { renderPositionChartTo(el('pos-canvas')); }
 
 // ═══════════════════════════════════════════════════════════
 // TDOA ARRIVAL TIME BAR CHART CANVAS
 // ═══════════════════════════════════════════════════════════
-function renderTDOAChart() {
-  const c = el('tdoa-canvas'); if (!c) return;
+function renderTDOAChartTo(canvas) {
+  const c = canvas || el('tdoa-canvas'); if (!c) return;
   const ctx = c.getContext('2d');
   const W = c.width; const H = c.height;
   if (W < 10 || H < 10) return;
@@ -1096,6 +1181,7 @@ function renderTDOAChart() {
     ctx.moveTo(0, y + rowH/2); ctx.lineTo(W, y + rowH/2); ctx.stroke();
   });
 }
+function renderTDOAChart() { renderTDOAChartTo(el('tdoa-canvas')); }
 
 // ═══════════════════════════════════════════════════════════
 // DOM HELPERS
