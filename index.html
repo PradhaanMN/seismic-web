@@ -62,7 +62,7 @@ packages = ["numpy", "matplotlib"]
       </div>
     </div>
     <div class="header-right">
-      <span class="header-meta">10 FIELD SENSORS · 5 SOLDIERS · 100m×70m</span>
+      <span class="header-meta">6 FIELD SENSORS · 5 SOLDIERS · 100m×70m</span>
       <button class="btn-internals" onclick="toggleInternals()">&#9881; System Internals</button>
       <span id="system-clock" class="header-clock">00:00:00</span>
     </div>
@@ -151,8 +151,7 @@ packages = ["numpy", "matplotlib"]
       <div class="panel-section">
         <div class="section-label">LEGEND</div>
         <div class="legend">
-          <div class="legend-item"><span class="legend-swatch" style="background:#1e4a7a"></span>Idle sensor (perimeter)</div>
-          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #00d4ff;background:#00d4ff22"></span>◆ Field sensor (10 units)</div>
+          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #00d4ff;background:#00d4ff22"></span>◆ Geophone sensor (6 units)</div>
           <div class="legend-item"><span class="legend-swatch" style="background:#4488ff"></span>● Soldier — patrol</div>
           <div class="legend-item"><span class="legend-swatch" style="border:2px solid #00d4ff;background:#00d4ff33"></span>◈ Soldier — intercept</div>
           <div class="legend-item"><span class="legend-swatch" style="border:2px solid #ffaa00;background:#ffaa0033"></span>▲ Soldier — block route</div>
@@ -166,7 +165,7 @@ packages = ["numpy", "matplotlib"]
       <!-- ARRAY CONFIG -->
       <div class="panel-section">
         <div class="section-label">ARRAY CONFIGURATION</div>
-        <div class="sensor-stat"><span>Sensors</span><span>64</span></div>
+        <div class="sensor-stat"><span>Sensors</span><span>6 field</span></div>
         <div class="sensor-stat"><span>Grid</span><span>20×14 cells</span></div>
         <div class="sensor-stat"><span>Cell size</span><span>5 m</span></div>
         <div class="sensor-stat"><span>Field area</span><span>100×70 m</span></div>
@@ -245,7 +244,7 @@ packages = ["numpy", "matplotlib"]
         <div class="mini-panel" onclick="openChartModal('tdoa')">
           <div class="mini-panel-header">
             <span class="mini-panel-title">⏱ TDOA Δt</span>
-            <span class="mini-panel-meta" id="tdoa-meta">8 nearest</span>
+            <span class="mini-panel-meta" id="tdoa-meta">6 sensors</span>
             <span class="mini-expand-hint">⛶ expand</span>
           </div>
           <canvas id="tdoa-canvas" class="mini-canvas"></canvas>
@@ -385,33 +384,41 @@ const NEON = {
 const gridCanvas = document.getElementById('sim-canvas');
 const gCtx       = gridCanvas.getContext('2d');
 
-// ── Sensor geometry ───────────────────────────────────────
-function buildSensors() {
-  const s = [];
-  for (let x = 0; x < COLS; x++)      s.push({ x, y: 0 });
-  for (let x = 0; x < COLS; x++)      s.push({ x, y: ROWS - 1 });
-  for (let y = 1; y < ROWS - 1; y++) s.push({ x: 0, y });
-  for (let y = 1; y < ROWS - 1; y++) s.push({ x: COLS - 1, y });
-  return s;
-}
-const SENSORS = buildSensors(); // 64 perimeter sensors (used for PyScript TDOA analysis)
-
-// ── 10 field-distributed sensors for visual display & BT detection ──────────
-// Placed using a triangular tessellation for max coverage of the 100m×70m field.
-// Each sensor has a 100m detection radius covering the entire field area.
+// ── Sensor geometry ─────────────────────────────────────────────────────────
+//
+// The field is 100m × 70m  (20×14 grid cells, 5 m/cell).
+// The field diagonal is only ~122m, so the maximum possible spacing between
+// any two sensors is ≈101m (corner-to-corner diagonal).
+// With a 100m detection radius each sensor already covers the entire field
+// from any interior position.
+//
+// Placement strategy — 6 sensors, maximally spread:
+//   • Two sensors at diagonally-opposite corners (spacing ≈101m)
+//   • Remaining four fill the other quadrants as far apart as possible.
+//   • All sensors share the TDOA analysis pool AND the visual layer —
+//     there is no separate perimeter ring; these ARE the sensor array.
+//
+//  Inter-sensor distances (5 m/cell):
+//    G0(1,1) ↔ G3(18,12)  ≈ 101m   ✓ (max diagonal)
+//    G1(13,1)↔ G4(6,12)   ≈ 101m   ✓ (max diagonal)
+//    G0(1,1) ↔ G1(13,1)   ≈  60m
+//    G2(19,6)↔ G5(1,6)    ≈  90m   ✓
+//    etc. — full coverage guaranteed by 100m radius on each unit
+//
 const FIELD_SENSORS = [
-  { id:0, x:2,  y:2  },  // NW quadrant
-  { id:1, x:9,  y:1  },  // N centre
-  { id:2, x:17, y:2  },  // NE quadrant
-  { id:3, x:4,  y:6  },  // W midfield
-  { id:4, x:10, y:6  },  // field centre
-  { id:5, x:16, y:6  },  // E midfield
-  { id:6, x:1,  y:11 },  // SW
-  { id:7, x:7,  y:12 },  // S centre-left
-  { id:8, x:13, y:12 },  // S centre-right
-  { id:9, x:18, y:11 },  // SE
+  { id:0, x:1,  y:1  },   // NW corner
+  { id:1, x:13, y:1  },   // N right               ~60m from G0
+  { id:2, x:19, y:6  },   // E midfield edge        ~90m from G5
+  { id:3, x:18, y:12 },   // SE corner             ~101m from G0
+  { id:4, x:6,  y:12 },   // S left                ~101m from G1
+  { id:5, x:1,  y:6  },   // W midfield edge        ~90m from G2
 ];
-// Detection radius: 100m = 20 cells. Circle drawn in faint dashes to show coverage zone.
+
+// Unified sensor list — used by both JS drawing and Python TDOA analysis.
+// Replaces the old 64-sensor perimeter ring completely.
+const SENSORS = FIELD_SENSORS.map(fs => ({ x: fs.x, y: fs.y }));
+
+// Detection radius: 100m = 20 cells.
 const DETECT_RADIUS_CELLS = 20;
 
 function toPixel(gx, gy) {
@@ -1074,7 +1081,7 @@ async function runPythonAnalysis() {
     appendLog(`⚠ ${r.label}  | est:(${r.est_gx},${r.est_gy}) | err≈${errM}m | SNR:${(r.snr_db||0).toFixed(1)}dB | ${(r.confidence*100).toFixed(0)}%`, 'log-alert');
     el('fft-meta').textContent  = `fdom: ${r.dominant_freq.toFixed(1)} Hz  |  passband: ${r.pass_lo.toFixed(0)}–${r.pass_hi.toFixed(0)} Hz`;
     el('pos-meta').textContent  = `t = ${sim.elapsed.toFixed(0)} s`;
-    el('tdoa-meta').textContent = `ref: S(${(sim.tdoaData&&sim.tdoaData[0])||'?'})  |  8 nearest sensors`;
+    el('tdoa-meta').textContent = `ref: S(${(sim.tdoaData&&sim.tdoaData[0])||'?'})  |  6 field sensors`;
   } catch (e) {
     console.error('[pyAnalyse error]', e);
   }
@@ -1149,7 +1156,7 @@ function drawGrid() {
 
   // Field watermark
   gCtx.font = '700 8px "Orbitron",monospace'; gCtx.fillStyle = 'rgba(0,180,220,0.1)';
-  gCtx.textAlign = 'center'; gCtx.fillText('GEOPHONE FIELD — 64 SENSOR PERIMETER ARRAY', W/2, H/2 - 7);
+  gCtx.textAlign = 'center'; gCtx.fillText('GEOPHONE FIELD — 6 SENSOR ARRAY  ·  100m DETECTION RADIUS', W/2, H/2 - 7);
   gCtx.font = '7px "Share Tech Mono"';
   gCtx.fillText('100 m × 70 m  ·  5 m/cell  ·  TDOA triangulation  ·  2 s analysis cycle', W/2, H/2 + 10);
   gCtx.textAlign = 'left';
@@ -1158,56 +1165,47 @@ function drawGrid() {
 function nearestSensors(gx, gy, n) {
   return new Set(
     SENSORS.map((s, i) => ({ i, d: (s.x-gx)**2 + (s.y-gy)**2 }))
-           .sort((a,b) => a.d - b.d).slice(0, n).map(o => o.i)
+           .sort((a,b) => a.d - b.d).slice(0, Math.min(n, SENSORS.length)).map(o => o.i)
   );
 }
 
-function drawSensors(activeSet, color) {
-  SENSORS.forEach((s, i) => {
-    const { cx, cy } = toPixel(s.x, s.y);
-    const active = activeSet.has(i);
-    if (active) {
-      // Bright glow
-      const gr = gCtx.createRadialGradient(cx, cy, 1, cx, cy, 16);
-      gr.addColorStop(0, color + 'cc'); gr.addColorStop(1, color + '00');
-      gCtx.fillStyle = gr; gCtx.beginPath(); gCtx.arc(cx, cy, 16, 0, 6.283); gCtx.fill();
-    }
-    gCtx.beginPath(); gCtx.arc(cx, cy, active ? 5 : 2.5, 0, 6.283);
-    gCtx.fillStyle = active ? color : '#1a3a6a'; gCtx.fill();
-    gCtx.beginPath(); gCtx.arc(cx, cy, active ? 9 : 4.5, 0, 6.283);
-    gCtx.strokeStyle = active ? color + 'bb' : 'rgba(0,120,200,0.3)';
-    gCtx.lineWidth = 1; gCtx.stroke();
-  });
-}
+// drawSensors is intentionally a no-op — drawFieldSensors() handles all rendering.
+// Kept so that any call sites in the codebase continue to work without errors.
+function drawSensors(_activeSet, _color) {}
 
-/** Draw TDOA time-delay labels near the 5 nearest active sensors */
+/** Draw TDOA time-delay labels near active field sensors */
 function drawSensorTDOALabels(activeSet, color) {
   if (!sim.tdoaData) return;
   sim.tdoaData.forEach(td => {
-    // find sensor index
     const idx = SENSORS.findIndex(s => s.x === td.gx && s.y === td.gy);
     if (idx < 0 || !activeSet.has(idx)) return;
     const { cx, cy } = toPixel(td.gx, td.gy);
     const label = td.isRef
       ? 'Δt=0 (REF)'
       : `Δt=${td.tdoa_ms >= 0 ? '+' : ''}${td.tdoa_ms.toFixed(2)}ms`;
-    // Label offset: push outward from perimeter
-    let ox = 0; let oy = 0;
-    if (td.gy === 0)         oy = -12;
-    else if (td.gy === ROWS-1) oy = 12;
-    else if (td.gx === 0)     ox = -8;
-    else                        ox = 8;
+
+    // Push label toward field interior (away from nearest edge)
+    const edgeLeft  = td.gx;
+    const edgeRight = COLS - 1 - td.gx;
+    const edgeTop   = td.gy;
+    const edgeBot   = ROWS - 1 - td.gy;
+    const minEdge   = Math.min(edgeLeft, edgeRight, edgeTop, edgeBot);
+    let ox = 0, oy = 0;
+    if      (minEdge === edgeTop)   oy =  14;
+    else if (minEdge === edgeBot)   oy = -14;
+    else if (minEdge === edgeLeft)  ox =  10;
+    else                             ox = -10;
 
     gCtx.font = '6px "Share Tech Mono"';
     gCtx.fillStyle = td.isRef ? '#ffffff' : color;
     gCtx.textAlign = ox < 0 ? 'right' : (ox > 0 ? 'left' : 'center');
-    gCtx.fillText(label, cx + ox * 8, cy + oy);
+    gCtx.fillText(label, cx + ox, cy + oy);
 
-    // Small dot line from sensor to label
+    // Small tick from diamond to label
     if (Math.abs(oy) > 0 || Math.abs(ox) > 0) {
       gCtx.beginPath();
-      gCtx.moveTo(cx, cy + (oy < 0 ? -5 : oy > 0 ? 5 : 0));
-      gCtx.lineTo(cx + ox * 7, cy + oy - 2);
+      gCtx.moveTo(cx, cy + (oy > 0 ? 6 : oy < 0 ? -6 : 0));
+      gCtx.lineTo(cx + ox * 0.7, cy + oy - (oy > 0 ? 4 : oy < 0 ? -4 : 0));
       gCtx.strokeStyle = color + '55'; gCtx.lineWidth = 0.5; gCtx.stroke();
     }
   });
@@ -2063,7 +2061,7 @@ window.onPyReady = function() {
   el('app-container').style.display   = 'flex';
   sim.lastRAF = performance.now();
   requestAnimationFrame(mainLoop);
-  appendLog('▶ Pyodide ready. 10 field sensors + 5 soldiers online.', 'log-success');
+  appendLog('▶ Pyodide ready. 6 field sensors + 5 soldiers online.', 'log-success');
   initSoldiers(); // start soldier patrol immediately
 };
 
@@ -2105,15 +2103,16 @@ COLS   = 20
 ROWS   = 14
 CELL_M = 5
 
-def get_perimeter_sensors():
-    s = []
-    for x in range(COLS):      s.append((x, 0))
-    for x in range(COLS):      s.append((x, ROWS - 1))
-    for y in range(1, ROWS-1): s.append((0, y))
-    for y in range(1, ROWS-1): s.append((COLS-1, y))
-    return s
-
-SENSORS = get_perimeter_sensors()  # 64 sensors
+# 6 field-distributed sensors — matches JS FIELD_SENSORS exactly.
+# Same positions used by both drawing code and TDOA grid-search analysis.
+SENSORS = [
+    (1,  1),   # G0 NW corner
+    (13, 1),   # G1 N right
+    (19, 6),   # G2 E midfield
+    (18, 12),  # G3 SE corner
+    (6,  12),  # G4 S left
+    (1,  6),   # G5 W midfield
+]
 
 def generate_signal(trigger_type, src_gx, src_gy, noise, wave_speed, sample_rate):
     T  = 1.0
@@ -2204,8 +2203,8 @@ def tdoa_estimate(src_gx, src_gy, noise, wave_speed, sample_rate):
     ref_idx     = int(np.argmin(true_dists))
     tdoas       = meas_times - meas_times[ref_idx]
 
-    # Build TDOA list (8 nearest sensors) for JS chart
-    order = np.argsort(true_dists)[:8]
+    # Build TDOA list for all 6 sensors for JS chart
+    order = np.argsort(true_dists)[:len(SENSORS)]  # all sensors
     sensor_tdoas = []
     for idx in order:
         sensor_tdoas.append({
