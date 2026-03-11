@@ -462,7 +462,7 @@ html, body {
   color: var(--text-secondary);
 }
 
-.log-entry { display: block; }
+.log-entry { display: block; padding: 1px 0; }
 .log-entry.log-info    { color: var(--accent-blue); }
 .log-entry.log-success { color: var(--accent-green); }
 .log-entry.log-warn    { color: var(--accent-amber); }

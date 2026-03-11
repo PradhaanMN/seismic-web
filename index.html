@@ -182,7 +182,7 @@ packages = ["numpy", "matplotlib"]
         <div class="panel-section" style="flex:0.55;display:flex;flex-direction:column;min-height:0">
           <div class="section-label">EVENT LOG</div>
           <div id="event-log" class="event-log">
-            <span class="log-entry log-dim">▶ System initialising…</span><br/>
+            <span class="log-entry log-dim">▶ System initialising…</span>
           </div>
         </div>
 
@@ -262,7 +262,7 @@ packages = ["numpy", "matplotlib"]
     <span id="bt-icon">⚡</span>
     <span id="bt-label">—</span>
     <span id="bt-detail"></span>
-    <button onclick="el('bt-status-bar').classList.add('hidden')" style="margin-left:auto;background:none;border:none;color:inherit;cursor:pointer;font-size:0.75rem">✕</button>
+    <button onclick="el('bt-status-bar').className='hidden'" style="margin-left:auto;background:none;border:none;color:inherit;cursor:pointer;font-size:0.75rem">✕</button>
   </div>
 
 
@@ -1273,7 +1273,8 @@ function drawIntruder() {
   const intr = sim.intruder;
   if (!intr) return;
   const { cx, cy } = toPixel(intr.gx, intr.gy);
-  const color = NEON.intruder; // red
+  const isFriendly = sim.trigger === 'friendly';
+  const color = isFriendly ? NEON.friendly : NEON.intruder;
   const t = sim.elapsed;
 
   // Trail
@@ -1300,10 +1301,12 @@ function drawIntruder() {
   gCtx.beginPath(); gCtx.arc(cx,cy,10,0,6.283);
   gCtx.strokeStyle = color; gCtx.lineWidth = 2.5; gCtx.stroke();
 
-  // Label
-  const spd = parseFloat(el('s-tspeed').value);
+  // Label — green checkmark for friendly, red warning for intruder
+  const label = isFriendly
+    ? `✓ FRIENDLY (${(intr.gx*CELL_M).toFixed(0)}m,${(intr.gy*CELL_M).toFixed(0)}m)`
+    : `⚠ INTRUDER (${(intr.gx*CELL_M).toFixed(0)}m,${(intr.gy*CELL_M).toFixed(0)}m)`;
   gCtx.font = 'bold 7px "Share Tech Mono"'; gCtx.fillStyle = color; gCtx.textAlign = 'left';
-  gCtx.fillText(`⚠ INTRUDER (${(intr.gx*CELL_M).toFixed(0)}m,${(intr.gy*CELL_M).toFixed(0)}m)`, cx+13, cy-4);
+  gCtx.fillText(label, cx+13, cy-4);
   gCtx.textAlign = 'left';
 }
 
@@ -1908,9 +1911,12 @@ function appendLog(msg, cls) {
   const log = el('event-log');
   const n   = new Date();
   const ts  = `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
-  log.innerHTML = `<span class="log-entry ${cls}"><span class="log-timestamp">[${ts}]</span>${msg}</span><br/>` + log.innerHTML;
-  const lines = log.innerHTML.split('<br/>');
-  if (lines.length > 40) log.innerHTML = lines.slice(0,40).join('<br/>');
+  const span = document.createElement('span');
+  span.className = `log-entry ${cls}`;
+  span.innerHTML = `<span class="log-timestamp">[${ts}]</span>${msg}`;
+  log.insertBefore(span, log.firstChild);
+  // Keep at most 40 entries
+  while (log.children.length > 40) log.removeChild(log.lastChild);
 }
 
 function setStatus(text) { el('status-text').textContent = text; }
@@ -2050,9 +2056,9 @@ window.resetSimulation = function() {
   // Re-init soldiers on reset so they return to patrol positions
   initSoldiers();
   el('event-log').innerHTML =
-    '<span class="log-entry log-dim">↺ Canvas reset.</span><br/>' +
-    '<span class="log-entry log-info">▶ 10 field sensors online. 5 soldiers on patrol.</span><br/>' +
-    '<span class="log-entry log-dim">▶ Awaiting seismic trigger…</span><br/>';
+    '<span class="log-entry log-dim">▶ Awaiting seismic trigger…</span>' +
+    '<span class="log-entry log-info">▶ 6 field sensors online · 5 soldiers on patrol.</span>' +
+    '<span class="log-entry log-dim">↺ Canvas reset.</span>';
   if (el('tactical-log')) el('tactical-log').innerHTML = '';
 };
 
