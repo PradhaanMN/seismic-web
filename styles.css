@@ -340,9 +340,11 @@ html, body {
   margin-top: 1px;
 }
 
-.btn-human   { border-left: 3px solid var(--accent-green);  color: var(--accent-green); }
-.btn-vehicle { border-left: 3px solid var(--accent-orange); color: var(--accent-orange); }
-.btn-animal  { border-left: 3px solid var(--accent-amber);  color: var(--accent-amber); }
+.btn-human    { border-left: 3px solid var(--accent-green);  color: var(--accent-green); }
+.btn-friendly { border-left: 3px solid var(--accent-green);  color: var(--accent-green); }
+.btn-intruder { border-left: 3px solid var(--accent-red);    color: var(--accent-red); }
+.btn-vehicle  { border-left: 3px solid var(--accent-orange); color: var(--accent-orange); }
+.btn-animal   { border-left: 3px solid var(--accent-amber);  color: var(--accent-amber); }
 
 .btn-reset {
   display: flex;
@@ -452,7 +454,9 @@ html, body {
   border: 1px solid var(--bg-border);
   border-radius: var(--btn-radius);
   padding: 6px 8px;
-  height: 72px;
+  flex: 1;
+  min-height: 60px;
+  max-height: 120px;
   overflow-y: auto;
   line-height: 1.5;
   color: var(--text-secondary);
@@ -465,6 +469,65 @@ html, body {
 .log-entry.log-alert   { color: var(--accent-red); font-weight: bold; }
 .log-entry.log-dim     { color: var(--text-dim); }
 .log-timestamp         { color: var(--text-dim); margin-right: 6px; }
+
+/* Tactical Directions Log */
+#tactical-log {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  background: var(--bg-card);
+  border: 1px solid var(--bg-border);
+  border-radius: var(--btn-radius);
+  border-left: 2px solid var(--accent-red);
+  padding: 5px 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  scrollbar-width: thin;
+}
+
+.tlog-entry { display: block; padding: 1px 0; }
+
+/* BT/LoRa Verification Status Bar */
+#bt-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  border-top: 1px solid;
+  transition: background 0.3s, border-color 0.3s;
+  flex-shrink: 0;
+}
+#bt-status-bar.hidden { display: none; }
+#bt-status-bar.bt-friendly {
+  background: rgba(0,255,187,0.07);
+  border-color: #00ffbb;
+  color: #00ffbb;
+}
+#bt-status-bar.bt-threat {
+  background: rgba(255,34,85,0.1);
+  border-color: #ff2255;
+  color: #ff2255;
+  animation: btThreatPulse 0.65s ease infinite;
+}
+@keyframes btThreatPulse {
+  0%, 100% { background: rgba(255,34,85,0.10); }
+  50%       { background: rgba(255,34,85,0.22); }
+}
+#bt-label  { font-weight: 700; letter-spacing: 0.1em; }
+#bt-detail { font-size: 0.6rem; opacity: 0.75; margin-left: 4px; }
+#bt-close  {
+  margin-left: auto;
+  cursor: pointer;
+  opacity: 0.55;
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: opacity 0.2s;
+}
+#bt-close:hover { opacity: 1; }
 
 /* Sensor count display */
 .sensor-stat {

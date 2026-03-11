@@ -62,7 +62,7 @@ packages = ["numpy", "matplotlib"]
       </div>
     </div>
     <div class="header-right">
-      <span class="header-meta">64 SENSORS · 20×14 GRID · 100m×70m</span>
+      <span class="header-meta">10 FIELD SENSORS · 5 SOLDIERS · 100m×70m</span>
       <button class="btn-internals" onclick="toggleInternals()">&#9881; System Internals</button>
       <span id="system-clock" class="header-clock">00:00:00</span>
     </div>
@@ -76,15 +76,19 @@ packages = ["numpy", "matplotlib"]
 
       <!-- TRIGGER BUTTONS -->
       <div class="panel-section">
-        <div class="section-label">INTRUDER TYPE</div>
+        <div class="section-label">ENTITY TYPE</div>
         <div class="trigger-btns">
-          <button id="btn-human"   class="trigger-btn btn-human"   onclick="startSimulation('human')">
-            <span class="btn-icon">🚶</span>
-            <div class="btn-text"><span class="btn-title">Human</span><span class="btn-freq">1–2 Hz</span></div>
+          <button id="btn-friendly" class="trigger-btn btn-friendly" onclick="startSimulation('friendly')">
+            <span class="btn-icon">🦵</span>
+            <div class="btn-text"><span class="btn-title">Friendly</span><span class="btn-freq">1–2 Hz · BT✓</span></div>
+          </button>
+          <button id="btn-intruder" class="trigger-btn btn-intruder" onclick="startSimulation('intruder')">
+            <span class="btn-icon">⚠️</span>
+            <div class="btn-text"><span class="btn-title">Intruder</span><span class="btn-freq">1–2 Hz · BT✗</span></div>
           </button>
           <button id="btn-vehicle" class="trigger-btn btn-vehicle" onclick="startSimulation('vehicle')">
             <span class="btn-icon">🚗</span>
-            <div class="btn-text"><span class="btn-title">Vehicle</span><span class="btn-freq">~50 Hz</span></div>
+            <div class="btn-text"><span class="btn-title">Vehicle</span><span class="btn-freq">~50 Hz · BT✗</span></div>
           </button>
           <button id="btn-animal"  class="trigger-btn btn-animal"  onclick="startSimulation('animal')">
             <span class="btn-icon">🐾</span>
@@ -147,13 +151,13 @@ packages = ["numpy", "matplotlib"]
       <div class="panel-section">
         <div class="section-label">LEGEND</div>
         <div class="legend">
-          <div class="legend-item"><span class="legend-swatch" style="background:#1e4a7a"></span>Idle sensor</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#00ffaa"></span>Human (active sensors)</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#ff5500"></span>Vehicle (active)</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#ffe600"></span>Animal (active)</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:#ff2255"></span>⚠ Intruder (human mode)</div>
-          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #00d4ff;background:#00d4ff33"></span>◈ Soldier — pursuer</div>
-          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #ffaa00;background:#ffaa0033"></span>▲ Soldiers — intercept</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#1e4a7a"></span>Idle sensor (perimeter)</div>
+          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #00d4ff;background:#00d4ff22"></span>◆ Field sensor (10 units)</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#4488ff"></span>● Soldier — patrol</div>
+          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #00d4ff;background:#00d4ff33"></span>◈ Soldier — intercept</div>
+          <div class="legend-item"><span class="legend-swatch" style="border:2px solid #ffaa00;background:#ffaa0033"></span>▲ Soldier — block route</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#00ffaa"></span>Friendly (BT verified)</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#ff2255"></span>⚠ Intruder / threat</div>
           <div class="legend-item"><span class="legend-swatch" style="border:2px dashed #00e5ff;background:transparent"></span>TDOA estimated</div>
           <div class="legend-item"><span class="legend-swatch" style="border:2px solid #c060ff;background:transparent"></span>Kalman filtered</div>
         </div>
@@ -176,11 +180,18 @@ packages = ["numpy", "matplotlib"]
       </div>
 
       <!-- EVENT LOG -->
-      <div class="panel-section" style="flex:1;display:flex;flex-direction:column;min-height:0">
-        <div class="section-label">EVENT LOG</div>
-        <div id="event-log" class="event-log">
-          <span class="log-entry log-dim">▶ System initialising…</span><br/>
+        <div class="panel-section" style="flex:0.55;display:flex;flex-direction:column;min-height:0">
+          <div class="section-label">EVENT LOG</div>
+          <div id="event-log" class="event-log">
+            <span class="log-entry log-dim">▶ System initialising…</span><br/>
+          </div>
         </div>
+
+        <!-- TACTICAL DIRECTIONS -->
+        <div class="panel-section" style="flex:0.45;display:flex;flex-direction:column;min-height:0">
+          <div class="section-label">⚡ TACTICAL DIRECTIONS <span id="tdir-status" style="color:#3a5070;font-size:0.55rem">— idle</span></div>
+          <div id="tactical-log" class="tactical-log">
+            <span class="log-entry log-dim">▶ Awaiting threat detection…</span>
       </div>
 
     </div><!-- /#control-panel -->
@@ -244,6 +255,15 @@ packages = ["numpy", "matplotlib"]
     </div><!-- /#canvas-area -->
 
   </div><!-- /#main-layout -->
+
+
+  <!-- BT VERIFICATION STATUS BAR ─────────────────────────── -->
+  <div id="bt-status-bar" class="hidden">
+    <span id="bt-icon">⚡</span>
+    <span id="bt-label">—</span>
+    <span id="bt-detail"></span>
+    <button onclick="el('bt-status-bar').classList.add('hidden')" style="margin-left:auto;background:none;border:none;color:inherit;cursor:pointer;font-size:0.75rem">✕</button>
+  </div>
 
 
 
@@ -348,15 +368,17 @@ const CELL_M = 5;      // metres per grid cell
 // Neon palette (matches CSS variables)
 const NEON = {
   human:     '#00ffbb',
+  friendly:  '#00ffbb',  // BT-verified — green
+  intruder:  '#ff2255',  // BT-failed  — red
   vehicle:   '#ff5500',
   animal:    '#ffe600',
   cyan:      '#00d4ff',
   purple:    '#c060ff',
   white:     '#ffffff',
   dimGrid:   'rgba(0,212,255,0.08)',
-  intruder:  '#ff2255',  // red  — intruder
-  pursuer:   '#00d4ff',  // cyan — pursuing soldier
-  intercept: '#ffaa00',  // amber — intercept soldiers
+  pursuer:   '#00d4ff',  // pursuing soldier
+  intercept: '#ffaa00',  // intercept/block soldiers
+  soldier:   '#4488ff',  // patrolling soldier
 };
 
 const gridCanvas = document.getElementById('sim-canvas');
@@ -371,7 +393,25 @@ function buildSensors() {
   for (let y = 1; y < ROWS - 1; y++) s.push({ x: COLS - 1, y });
   return s;
 }
-const SENSORS = buildSensors(); // 64 sensors
+const SENSORS = buildSensors(); // 64 perimeter sensors (used for PyScript TDOA analysis)
+
+// ── 10 field-distributed sensors for visual display & BT detection ──────────
+// Placed using a triangular tessellation for max coverage of the 100m×70m field.
+// Each sensor has a 100m detection radius covering the entire field area.
+const FIELD_SENSORS = [
+  { id:0, x:2,  y:2  },  // NW quadrant
+  { id:1, x:9,  y:1  },  // N centre
+  { id:2, x:17, y:2  },  // NE quadrant
+  { id:3, x:4,  y:6  },  // W midfield
+  { id:4, x:10, y:6  },  // field centre
+  { id:5, x:16, y:6  },  // E midfield
+  { id:6, x:1,  y:11 },  // SW
+  { id:7, x:7,  y:12 },  // S centre-left
+  { id:8, x:13, y:12 },  // S centre-right
+  { id:9, x:18, y:11 },  // SE
+];
+// Detection radius: 100m = 20 cells. Circle drawn in faint dashes to show coverage zone.
+const DETECT_RADIUS_CELLS = 20;
 
 function toPixel(gx, gy) {
   return { cx: gx * CELL + CELL / 2, cy: gy * CELL + CELL / 2 };
@@ -400,9 +440,12 @@ const sim = {
   kalmanEst:  { gx: -1, gy: -1 },
   // Human-mode tactical units
   intruder:   null,  // { gx, gy, vx, vy, perturbTimer, trail[] }
-  pursuer:    null,  // { gx, gy, vx, vy }  — active pursuing soldier
-  interceptors: [],  // [{ gx, gy, targetGx, targetGy }]  — 3 soldiers at predicted positions
-  tacticalMsg: '',   // direction instruction for the pursuer
+  pursuer:    null,  // kept for backward compat but replaced by sim.soldiers
+  interceptors: [],  // kept for backward compat
+  tacticalMsg: '',   // direction instruction for tactical HUD
+  // New unified soldier system (5 soldiers, always active)
+  soldiers:   [],
+  btStatus:   null,  // null | 'friendly' | 'threat'
 };
 
 function el(id) { return document.getElementById(id); }
@@ -504,37 +547,408 @@ function kalmanUpdate(measX, measY, dt) {
   return { gx: kalman.x, gy: kalman.y };
 }
 
+// ═══════════════════════════════════════════════════════════
+// SOLDIER SYSTEM — 5 units, always active on map
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * initSoldiers() — spawn 5 soldiers at fixed starting positions.
+ * Called on page load AND on each simulation reset.
+ * Soldiers operate in three states:
+ *   'patrol'    — slow random wandering across the field
+ *   'intercept' — direct pursuit of the threat entity
+ *   'block'     — move to predicted escape-route choke point
+ */
+function initSoldiers() {
+  sim.soldiers = [
+    { id:1, gx:3,  gy:3,  state:'patrol', targetGx:null, targetGy:null, patrolAngle:Math.random()*6.283 },
+    { id:2, gx:16, gy:3,  state:'patrol', targetGx:null, targetGy:null, patrolAngle:Math.random()*6.283 },
+    { id:3, gx:10, gy:7,  state:'patrol', targetGx:null, targetGy:null, patrolAngle:Math.random()*6.283 },
+    { id:4, gx:4,  gy:11, state:'patrol', targetGx:null, targetGy:null, patrolAngle:Math.random()*6.283 },
+    { id:5, gx:16, gy:11, state:'patrol', targetGx:null, targetGy:null, patrolAngle:Math.random()*6.283 },
+  ];
+}
+
+/**
+ * updateSoldiers(dt) — move all 5 soldiers each frame.
+ *
+ * Patrol:    random walk with low speed, bounce off boundaries.
+ * Intercept: direct line to threat entity (re-computed each frame).
+ * Block:     move to predicted intercept position, hold once arrived.
+ */
+function updateSoldiers(dt) {
+  if (!sim.soldiers.length) return;
+  const soldierSpeed = parseFloat(el('s-tspeed').value) * 0.65; // slightly slower than threat
+
+  sim.soldiers.forEach(s => {
+    if (s.state === 'patrol') {
+      // ── Patrol: slow random walk (25% of soldier speed) ──
+      s.patrolAngle += (Math.random() - 0.5) * 0.8 * dt;
+      const sp = soldierSpeed * 0.25;
+      s.gx += Math.cos(s.patrolAngle) * sp * dt;
+      s.gy += Math.sin(s.patrolAngle) * sp * dt;
+      // Bounce inside field
+      if (s.gx < 1)        { s.gx = 1;        s.patrolAngle = Math.PI - s.patrolAngle; }
+      if (s.gx > COLS - 2) { s.gx = COLS - 2; s.patrolAngle = Math.PI - s.patrolAngle; }
+      if (s.gy < 1)        { s.gy = 1;        s.patrolAngle = -s.patrolAngle; }
+      if (s.gy > ROWS - 2) { s.gy = ROWS - 2; s.patrolAngle = -s.patrolAngle; }
+
+    } else if (s.state === 'intercept') {
+      // ── Intercept: chase the active threat entity ──────────
+      // Re-acquire target position every frame for continuous pursuit.
+      const threat = (sim.intruder) ? sim.intruder : sim.target;
+      s.targetGx = threat.gx;
+      s.targetGy = threat.gy;
+      const dx = s.targetGx - s.gx;
+      const dy = s.targetGy - s.gy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > 0.4) {
+        s.gx += (dx / dist) * soldierSpeed * dt;
+        s.gy += (dy / dist) * soldierSpeed * dt;
+      }
+
+    } else if (s.state === 'block') {
+      // ── Block: move to and hold predicted intercept position ──
+      if (s.targetGx == null) return;
+      const dx = s.targetGx - s.gx;
+      const dy = s.targetGy - s.gy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > 0.3) {
+        s.gx += (dx / dist) * soldierSpeed * dt;
+        s.gy += (dy / dist) * soldierSpeed * dt;
+      }
+    }
+  });
+}
+
+/**
+ * degreesToCompass(deg) — convert bearing in degrees to compass direction string.
+ * deg: 0 = North, 90 = East, 180 = South, 270 = West (standard compass bearing).
+ */
+function degreesToCompass(deg) {
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
+                'S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+}
+
+/**
+ * generateTacticalDirections() — compute bearing & distance for each active soldier
+ * and write plain-English orders to the Tactical Directions panel.
+ */
+function generateTacticalDirections() {
+  const log = el('tactical-log');
+  if (!log) return;
+  const threat = sim.intruder || sim.target;
+  let html = '';
+  const ts = new Date();
+  const stamp = `${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}:${String(ts.getSeconds()).padStart(2,'0')}`;
+
+  sim.soldiers.forEach(s => {
+    if (s.state === 'patrol') return; // silent during patrol
+
+    const tgx = s.targetGx ?? threat.gx;
+    const tgy = s.targetGy ?? threat.gy;
+    const dx  = tgx - s.gx;
+    const dy  = tgy - s.gy;
+    const distM    = (Math.sqrt(dx*dx + dy*dy) * CELL_M).toFixed(0);
+
+    // Math: Cartesian → compass bearing
+    // atan2 gives angle from +x axis (east). Convert to compass (north=0, clockwise).
+    const bearingRad  = Math.atan2(dy, dx);           // cartesian: E=0, N=+y
+    const cartDeg     = bearingRad * 180 / Math.PI;   // -180..180
+    const compassDeg  = ((90 - cartDeg) + 360) % 360; // compass: N=0, E=90
+    const compassStr  = degreesToCompass(compassDeg);
+
+    const color  = s.state === 'intercept' ? '#ff4466' : '#ffaa00';
+    const action = s.state === 'intercept'
+      ? `\ud83d\udd34 PURSUE  \u2014 Turn ${Math.round(compassDeg)}\u00b0 ${compassStr} \u00b7 Move ${distM}m`
+      : `\ud7e4 BLOCK   \u2014 Move to ${compassStr} chokepoint \u00b7 ${distM}m`;
+
+    html += `<span class="tlog-entry" style="color:${color}">[${stamp}][S-${s.id}] ${action}</span><br/>`;
+  });
+
+  if (html) {
+    log.innerHTML = html + log.innerHTML;
+    // Keep log to 30 lines
+    const lines = log.innerHTML.split('<br/>');
+    if (lines.length > 30) log.innerHTML = lines.slice(0,30).join('<br/>');
+  }
+}
+
+/**
+ * activateTacticalResponse() — called when a THREAT is confirmed.
+ *
+ * Algorithm:
+ *   1. Sort all 5 soldiers by Euclidean distance to threat.
+ *   2. Assign the 2 closest → 'intercept' (direct pursuit).
+ *   3. Assign the 3 remaining → 'block' (predicted escape choke points).
+ *
+ * Predicted positions are computed by projecting the threat's current
+ * velocity vector forward in time: pos_pred = pos + v_hat * speed * t_ahead
+ */
+function activateTacticalResponse() {
+  const threat = sim.intruder || sim.target;
+  if (!threat) return;
+
+  // Sort soldiers by distance to threat (ascending)
+  const sorted = [...sim.soldiers].sort((a, b) => {
+    const da = (a.gx - threat.gx)**2 + (a.gy - threat.gy)**2;
+    const db = (b.gx - threat.gx)**2 + (b.gy - threat.gy)**2;
+    return da - db;
+  });
+
+  // 2 closest → intercept
+  sorted.slice(0, 2).forEach(s => {
+    s.state = 'intercept';
+    s.targetGx = threat.gx;
+    s.targetGy = threat.gy;
+  });
+
+  // 3 remaining → block at predicted escape routes
+  // Velocity unit vector of threat (vx, vy normalised)
+  const vMag = Math.sqrt((threat.vx||0)**2 + (threat.vy||0)**2) || 1;
+  const spd  = parseFloat(el('s-tspeed').value) * 0.8;
+  const blockTimes = [2.0, 4.0, 7.0]; // seconds ahead
+  sorted.slice(2).forEach((s, idx) => {
+    s.state = 'block';
+    const tAhead = blockTimes[idx % blockTimes.length];
+    // Predict where threat will be in tAhead seconds
+    let predGx = threat.gx + ((threat.vx||0) / vMag) * spd * tAhead;
+    let predGy = threat.gy + ((threat.vy||0) / vMag) * spd * tAhead;
+    predGx = Math.max(1, Math.min(COLS - 2, predGx));
+    predGy = Math.max(1, Math.min(ROWS - 2, predGy));
+    s.targetGx = predGx;
+    s.targetGy = predGy;
+  });
+
+  // Post directions to panel
+  el('tdir-status').textContent = '— engaged';
+  el('tdir-status').style.color = '#ff4466';
+  generateTacticalDirections();
+}
+
+/**
+ * triggerBluetoothVerification(trigger) — simulates the BT/LoRa handshake step.
+ *
+ * Real system: soldier wrist units broadcast a beacon on 2.4 GHz BLE.
+ * If picked up within 50ms → identity confirmed → friendly.
+ * Silence → no transponder → treat as hostile.
+ */
+function triggerBluetoothVerification(trigger) {
+  const bar = el('bt-status-bar');
+  sim.btStatus = (trigger === 'friendly') ? 'friendly' : 'threat';
+
+  if (trigger === 'friendly') {
+    bar.className = 'bt-friendly';
+    el('bt-icon').textContent  = '\ud83d\udfe2';
+    el('bt-label').textContent = 'FRIENDLY DETECTED \u2014 NO ACTION';
+    el('bt-detail').textContent = 'Bluetooth beacon matched \u00b7 LoRa ID confirmed \u00b7 soldiers remain on patrol';
+    appendLog('\u2713 BT HANDSHAKE OK \u2014 FRIENDLY FORCE \u2014 no response triggered', 'log-success');
+    // Ensure all soldiers stay / return to patrol
+    sim.soldiers.forEach(s => { s.state = 'patrol'; });
+    el('tdir-status').textContent = '\u2014 friendly \u2014 no action';
+    el('tdir-status').style.color = '#00ffaa';
+    el('tactical-log').innerHTML = '<span class="log-entry log-dim">\u2713 Friendly ID confirmed \u2014 standing down.</span>';
+    setTimeout(() => { if (sim.btStatus === 'friendly') bar.className = 'hidden'; }, 5000);
+  } else {
+    bar.className = 'bt-threat';
+    el('bt-icon').textContent  = '\ud83d\udd34';
+    el('bt-label').textContent = 'THREAT DETECTED \u2014 ENGAGING';
+    el('bt-detail').textContent = `${trigger.toUpperCase()} detected \u00b7 Bluetooth handshake FAILED \u00b7 tactical response initiated`;
+    appendLog(`\u26a0 THREAT: ${trigger.toUpperCase()} \u2014 BT handshake failed \u2014 tactical response active`, 'log-alert');
+    activateTacticalResponse();
+  }
+}
+
+/**
+ * drawFieldSensors() — render the 10 field-distributed geophones.
+ * Each sensor is drawn as a diamond. A faint dashed circle of radius
+ * DETECT_RADIUS_CELLS shows the detection coverage zone.
+ * Sensors brighten and glow when a threat is within range.
+ */
+function drawFieldSensors() {
+  const rPx = DETECT_RADIUS_CELLS * CELL; // 100m in pixels
+  const src = (sim.running && (sim.trigger === 'intruder' || sim.trigger === 'friendly') && sim.intruder)
+    ? sim.intruder : (sim.running ? sim.target : null);
+
+  FIELD_SENSORS.forEach(fs => {
+    const { cx, cy } = toPixel(fs.x, fs.y);
+
+    // ── Detection coverage circle (faint dashed) ──────────
+    gCtx.beginPath();
+    gCtx.arc(cx, cy, rPx, 0, 6.283);
+    gCtx.strokeStyle = 'rgba(0,180,220,0.05)';
+    gCtx.lineWidth = 0.8;
+    gCtx.setLineDash([4, 7]);
+    gCtx.stroke();
+    gCtx.setLineDash([]);
+
+    // Check if threat/entity is within detection range
+    const dist = src
+      ? Math.sqrt((fs.x - src.gx)**2 + (fs.y - src.gy)**2) * CELL_M
+      : 999;
+    const isActive = sim.running && dist <= 100;
+    const activeColor = (NEON[sim.trigger] || NEON.cyan);
+
+    if (isActive) {
+      // Glow ring
+      const gr = gCtx.createRadialGradient(cx, cy, 2, cx, cy, 20);
+      gr.addColorStop(0, activeColor + 'aa');
+      gr.addColorStop(1, activeColor + '00');
+      gCtx.fillStyle = gr;
+      gCtx.beginPath(); gCtx.arc(cx, cy, 20, 0, 6.283); gCtx.fill();
+    }
+
+    // Diamond body
+    const D = isActive ? 6 : 4;
+    gCtx.beginPath();
+    gCtx.moveTo(cx, cy - D); gCtx.lineTo(cx + D, cy);
+    gCtx.lineTo(cx, cy + D); gCtx.lineTo(cx - D, cy);
+    gCtx.closePath();
+    gCtx.fillStyle   = isActive ? activeColor + '66' : '#0d2040';
+    gCtx.strokeStyle = isActive ? activeColor : '#00d4ff44';
+    gCtx.lineWidth   = isActive ? 1.8 : 1;
+    if (isActive) { gCtx.shadowColor = activeColor; gCtx.shadowBlur = 8; }
+    gCtx.fill(); gCtx.stroke();
+    gCtx.shadowBlur = 0;
+
+    // Label G0..G9
+    gCtx.font = '6px "Share Tech Mono"';
+    gCtx.fillStyle   = isActive ? activeColor : '#2a4a6a';
+    gCtx.textAlign   = 'center';
+    gCtx.fillText(`G${fs.id}`, cx, cy + D + 9);
+    gCtx.textAlign = 'left';
+  });
+}
+
+/**
+ * drawSoldiers() — render all 5 soldiers with state-appropriate glyphs.
+ *
+ *  Patrol   → blue circle (dim, slow pulse)
+ *  Intercept → cyan pentagon + direction arrow toward threat
+ *  Block    → amber triangle + dashed line to predicted position + X marker
+ */
+function drawSoldiers() {
+  if (!sim.soldiers.length) return;
+  sim.soldiers.forEach(s => {
+    const { cx, cy } = toPixel(s.gx, s.gy);
+
+    if (s.state === 'patrol') {
+      // ── Blue pulsing dot ─────────────────────────────────
+      const pulse = 0.6 + 0.4 * Math.sin(sim.elapsed * 2.5 + s.id * 1.2);
+      gCtx.globalAlpha = pulse;
+      gCtx.beginPath(); gCtx.arc(cx, cy, 7, 0, 6.283);
+      gCtx.fillStyle = '#4488ff22'; gCtx.strokeStyle = '#4488ff'; gCtx.lineWidth = 1.5;
+      gCtx.fill(); gCtx.stroke();
+      gCtx.beginPath(); gCtx.arc(cx, cy, 3, 0, 6.283);
+      gCtx.fillStyle = '#4488ff'; gCtx.fill();
+      gCtx.globalAlpha = 1;
+      gCtx.font = 'bold 6px "Share Tech Mono"'; gCtx.fillStyle = '#4488ff';
+      gCtx.textAlign = 'center'; gCtx.fillText(`S${s.id}`, cx, cy + 14); gCtx.textAlign = 'left';
+
+    } else if (s.state === 'intercept') {
+      // ── Cyan pentagon + chase arrow ──────────────────────
+      const col = NEON.pursuer;
+      const threat = sim.intruder || sim.target;
+
+      // Dashed line to target
+      if (threat) {
+        const { cx: tx, cy: ty } = toPixel(threat.gx, threat.gy);
+        gCtx.beginPath(); gCtx.moveTo(cx, cy); gCtx.lineTo(tx, ty);
+        gCtx.strokeStyle = col + '44'; gCtx.lineWidth = 0.7;
+        gCtx.setLineDash([3, 4]); gCtx.stroke(); gCtx.setLineDash([]);
+      }
+
+      // Pentagon
+      gCtx.shadowColor = col; gCtx.shadowBlur = 10;
+      gCtx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = (i * 2 * Math.PI / 5) - Math.PI / 2;
+        i === 0 ? gCtx.moveTo(cx + 9*Math.cos(a), cy + 9*Math.sin(a))
+                : gCtx.lineTo(cx + 9*Math.cos(a), cy + 9*Math.sin(a));
+      }
+      gCtx.closePath();
+      gCtx.fillStyle = col + '44'; gCtx.strokeStyle = col; gCtx.lineWidth = 2;
+      gCtx.fill(); gCtx.stroke(); gCtx.shadowBlur = 0;
+      gCtx.font = 'bold 6px "Share Tech Mono"'; gCtx.fillStyle = col;
+      gCtx.textAlign = 'center'; gCtx.fillText(`S${s.id}`, cx, cy + 17); gCtx.textAlign = 'left';
+
+    } else if (s.state === 'block') {
+      // ── Amber triangle + X marker at predicted position ──
+      const col = NEON.intercept;
+
+      // Line + X at predicted choke point
+      if (s.targetGx != null) {
+        const { cx: tx, cy: ty } = toPixel(s.targetGx, s.targetGy);
+        gCtx.beginPath(); gCtx.moveTo(cx, cy); gCtx.lineTo(tx, ty);
+        gCtx.strokeStyle = col + '55'; gCtx.lineWidth = 0.7;
+        gCtx.setLineDash([4, 4]); gCtx.stroke(); gCtx.setLineDash([]);
+        gCtx.strokeStyle = col + '99'; gCtx.lineWidth = 1.5;
+        gCtx.beginPath(); gCtx.moveTo(tx-5,ty-5); gCtx.lineTo(tx+5,ty+5); gCtx.stroke();
+        gCtx.beginPath(); gCtx.moveTo(tx+5,ty-5); gCtx.lineTo(tx-5,ty+5); gCtx.stroke();
+        gCtx.font = '6px "Share Tech Mono"'; gCtx.fillStyle = col + 'aa';
+        gCtx.textAlign = 'center'; gCtx.fillText('CHOKE', tx, ty - 8); gCtx.textAlign = 'left';
+      }
+
+      // Triangle
+      gCtx.shadowColor = col; gCtx.shadowBlur = 8;
+      gCtx.beginPath();
+      gCtx.moveTo(cx, cy - 8); gCtx.lineTo(cx + 7, cy + 5); gCtx.lineTo(cx - 7, cy + 5);
+      gCtx.closePath();
+      gCtx.fillStyle = col + '55'; gCtx.strokeStyle = col; gCtx.lineWidth = 1.8;
+      gCtx.fill(); gCtx.stroke(); gCtx.shadowBlur = 0;
+      gCtx.font = 'bold 6px "Share Tech Mono"'; gCtx.fillStyle = col;
+      gCtx.textAlign = 'center'; gCtx.fillText(`S${s.id}`, cx, cy + 17); gCtx.textAlign = 'left';
+    }
+  });
+}
+
+/**
+ * updateAmbientNoise(dt) — always-on background noise in the waveform buffer.
+ * Runs even before simulation starts, simulating real-world sensor baseline:
+ *   - Low-frequency wind rumble (0.1–0.3 Hz)
+ *   - Secondary microseisms (0.05–0.15 Hz)
+ *   - White broadband noise floor
+ */
+function updateAmbientNoise(dt) {
+  const fs    = parseFloat(el('s-srate').value);
+  const noise = parseFloat(el('s-noise').value) * 0.35; // quieter ambient
+  const count = Math.max(1, Math.round(fs * dt));
+  for (let i = 0; i < count; i++) {
+    sim.wfTime += 1 / fs;
+    const tv = sim.wfTime;
+    // Wind: slow modulated sine
+    const wind  = 0.12 * Math.sin(2*Math.PI*0.18*tv + 0.5) * (1 + 0.3*Math.sin(2*Math.PI*0.06*tv));
+    // Microseism baseline
+    const micro = 0.06 * Math.sin(2*Math.PI*0.09*tv + 1.2);
+    // White noise floor
+    const wn    = (Math.random() - 0.5) * noise * 2;
+    const s     = wind + micro + wn;
+    sim.wfBuf.copyWithin(0, 1);
+    sim.wfBuf[sim.wfBuf.length - 1] = s;
+  }
+}
+
 // ── Human-mode: intruder & soldier updates ───────────────
 function initHumanUnits() {
-  // Intruder starts at a random inner position
+  // Intruder / friendly soldier spawns at a random inner position
   const ix = 3 + Math.floor(Math.random() * (COLS - 6));
   const iy = 3 + Math.floor(Math.random() * (ROWS - 6));
   const iAngle = Math.random() * 6.283;
   sim.intruder = { gx: ix, gy: iy, vx: Math.cos(iAngle), vy: Math.sin(iAngle), perturbTimer: 0, trail: [] };
-
-  // Pursuer starts near a perimeter corner
-  const corners = [[2,2],[COLS-3,2],[2,ROWS-3],[COLS-3,ROWS-3]];
-  const c = corners[Math.floor(Math.random()*4)];
-  sim.pursuer = { gx: c[0], gy: c[1], vx: 0, vy: 0 };
-
-  // 3 intercept soldiers start at other corners / edges
-  sim.interceptors = [
-    { gx: 5,         gy: Math.round(ROWS/2), targetGx: 10, targetGy: 7 },
-    { gx: COLS-6,    gy: 2,                  targetGx: 10, targetGy: 7 },
-    { gx: Math.round(COLS/2), gy: ROWS-3,   targetGx: 10, targetGy: 7 },
-  ];
+  // Legacy fields kept for compat — movement now handled by soldiers array
+  sim.pursuer      = null;
+  sim.interceptors = [];
 }
 
 function updateHumanUnits(dt) {
-  if (sim.trigger !== 'human') return;
-  const speed   = parseFloat(el('s-tspeed').value) * 0.9; // intruder speed
-  const soldSpd = parseFloat(el('s-tspeed').value) * 0.75; // soldier speed (slower, realistic)
+  // ActiveTrigger must be intruder or friendly (they both produce a moving entity)
+  if (sim.trigger !== 'intruder' && sim.trigger !== 'friendly') return;
+  const speed = parseFloat(el('s-tspeed').value) * 0.9;
+  const intr  = sim.intruder;
+  if (!intr) return;
 
-  const intr = sim.intruder;
-  const purs = sim.pursuer;
-  if (!intr || !purs) return;
-
-  // ── Move intruder (same bounce/perturb logic as target) ──
+  // ── Move entity (bounce + random perturbation) ────────────
   const imag = Math.sqrt(intr.vx*intr.vx + intr.vy*intr.vy) || 1;
   intr.gx += (intr.vx/imag)*speed*dt;
   intr.gy += (intr.vy/imag)*speed*dt;
@@ -548,65 +962,13 @@ function updateHumanUnits(dt) {
     const ang = Math.atan2(intr.vy, intr.vx) + (Math.random()-0.5)*Math.PI*0.8;
     intr.vx = Math.cos(ang); intr.vy = Math.sin(ang);
   }
-  // Trail
+
+  // Trail of footstep positions
   const lt = intr.trail[intr.trail.length-1];
   if (!lt || (intr.gx-lt.gx)**2+(intr.gy-lt.gy)**2 > 0.04) {
     intr.trail.push({ gx: intr.gx, gy: intr.gy });
     if (intr.trail.length > 60) intr.trail.shift();
   }
-
-  // ── Move pursuer toward intruder ─────────────────────────
-  const pdx = intr.gx - purs.gx;
-  const pdy = intr.gy - purs.gy;
-  const pdist = Math.sqrt(pdx*pdx + pdy*pdy);
-  if (pdist > 0.3) {
-    purs.gx += (pdx/pdist)*soldSpd*dt;
-    purs.gy += (pdy/pdist)*soldSpd*dt;
-    purs.vx = pdx/pdist; purs.vy = pdy/pdist;
-  }
-
-  // ── Tactical direction instruction ───────────────────────
-  // Compare intruder bearing vs pursuer's current heading
-  const bearingToIntruder = Math.atan2(pdy, pdx);
-  const currentHeading    = Math.atan2(purs.vy, purs.vx);
-  let angleDiff = bearingToIntruder - currentHeading;
-  // Normalise to [-PI, PI]
-  while (angleDiff >  Math.PI) angleDiff -= 2*Math.PI;
-  while (angleDiff < -Math.PI) angleDiff += 2*Math.PI;
-  if (pdist < 1.5) {
-    sim.tacticalMsg = '🎯 TARGET ACQUIRED — MOVE IN';
-  } else if (Math.abs(angleDiff) < 0.25) {
-    sim.tacticalMsg = '▲ STRAIGHT — maintain pursuit';
-  } else if (angleDiff > 0) {
-    const deg = Math.round((angleDiff * 180)/Math.PI);
-    sim.tacticalMsg = `↷ TURN RIGHT ${deg}° — intercept imminent`;
-  } else {
-    const deg = Math.round((-angleDiff * 180)/Math.PI);
-    sim.tacticalMsg = `↶ TURN LEFT ${deg}° — cut off escape route`;
-  }
-
-  // ── Update intercept soldiers → predicted future positions ─
-  // Use Kalman velocity to project intruder ahead in time
-  const vMag = Math.sqrt(intr.vx*intr.vx + intr.vy*intr.vy) || 1;
-  const offsets = [1.5, 3.0, 5.0]; // seconds ahead
-  sim.interceptors.forEach((sol, idx) => {
-    const tAhead  = offsets[idx];
-    let predGx = intr.gx + (intr.vx/vMag)*speed*tAhead;
-    let predGy = intr.gy + (intr.vy/vMag)*speed*tAhead;
-    // Clamp prediction inside field
-    predGx = Math.max(1, Math.min(COLS-2, predGx));
-    predGy = Math.max(1, Math.min(ROWS-2, predGy));
-    sol.targetGx = predGx;
-    sol.targetGy = predGy;
-    // Move soldier toward predicted position
-    const sdx = sol.targetGx - sol.gx;
-    const sdy = sol.targetGy - sol.gy;
-    const sdist = Math.sqrt(sdx*sdx + sdy*sdy);
-    if (sdist > 0.4) {
-      sol.gx += (sdx/sdist)*soldSpd*dt;
-      sol.gy += (sdy/sdist)*soldSpd*dt;
-    }
-  });
 }
 
 // ── Target movement ───────────────────────────────────────
@@ -638,8 +1000,8 @@ function updateWaveformBuffer(dt) {
   if (!sim.running) return;
   const fs    = parseFloat(el('s-srate').value);
   const noise = parseFloat(el('s-noise').value);
-  // In human mode, intruder is the seismic source (footsteps)
-  const src = (sim.trigger === 'human' && sim.intruder) ? sim.intruder : sim.target;
+  // In intruder/friendly mode, the spawned entity is the seismic source (footsteps)
+  const src = ((sim.trigger === 'intruder' || sim.trigger === 'friendly') && sim.intruder) ? sim.intruder : sim.target;
   const nearDist = Math.min(...SENSORS.map(s =>
     Math.sqrt((s.x - src.gx) ** 2 + (s.y - src.gy) ** 2)));
   const decay = Math.exp(-nearDist * 0.12);
@@ -683,12 +1045,14 @@ async function runPythonAnalysis() {
   const noise  = parseFloat(el('s-noise').value);
   const wSpd   = parseFloat(el('s-wspeed').value);
   const sRate  = parseFloat(el('s-srate').value);
-  // In human mode, intruder is the seismic source
-  const seismicSrc = (sim.trigger === 'human' && sim.intruder) ? sim.intruder : sim.target;
+  const isPersonMode = sim.trigger === 'intruder' || sim.trigger === 'friendly';
+  const seismicSrc = (isPersonMode && sim.intruder) ? sim.intruder : sim.target;
   const srcGx  = Math.round(Math.max(1, Math.min(COLS - 2, seismicSrc.gx)));
   const srcGy  = Math.round(Math.max(1, Math.min(ROWS - 2, seismicSrc.gy)));
+  // Map new trigger names to 'human' for PyScript waveform generation
+  const pyTrigger = isPersonMode ? 'human' : sim.trigger;
   try {
-    const raw = window.pyAnalyse(sim.trigger, srcGx, srcGy, noise, wSpd, sRate);
+    const raw = window.pyAnalyse(pyTrigger, srcGx, srcGy, noise, wSpd, sRate);
     const r   = JSON.parse(String(raw));
     sim.estimated.gx   = r.est_gx;
     sim.estimated.gy   = r.est_gy;
@@ -1034,7 +1398,7 @@ function drawInterceptors() {
 
 // ── Tactical HUD overlay (direction text box) ─────────────
 function drawTacticalHUD() {
-  if (!sim.tacticalMsg || sim.trigger !== 'human') return;
+  if (!sim.tacticalMsg || (sim.trigger !== 'intruder' && sim.trigger !== 'friendly')) return;
   const W = gridCanvas.width;
   // Background pill at top-center
   const msg = sim.tacticalMsg;
@@ -1234,9 +1598,10 @@ function renderFFTTo(canvas) {
   const { freqs, mag, passLo, passHi, domFreq } = sim.fftData;
   const color = NEON[sim.trigger] || NEON.cyan;
   // Adaptive frequency scale per trigger type
-  const maxFreq = sim.trigger === 'human' ? 8 : sim.trigger === 'animal' ? 20 : 160;
+  const maxFreq = (sim.trigger === 'human' || sim.trigger === 'intruder' || sim.trigger === 'friendly') ? 8
+                 : sim.trigger === 'animal' ? 20 : 160;
   const fToX = f => ML + (f / maxFreq) * PW;
-  const fTicks = sim.trigger === 'human'  ? [0,1,2,3,4,5,6,7,8] :
+  const fTicks = (sim.trigger === 'human' || sim.trigger === 'intruder' || sim.trigger === 'friendly') ? [0,1,2,3,4,5,6,7,8] :
                  sim.trigger === 'animal' ? [0,4,8,12,16,20] :
                                             [0,20,40,60,80,100,120,140,160];
 
@@ -1569,22 +1934,27 @@ function mainLoop(timestamp) {
     }
   }
 
-  // Grid canvas
-  drawGrid();
+  // Always update ambient noise and soldiers regardless of sim state
+  // (updateWaveformBuffer below also writes wfBuf when running; ambient only fills idle baseline)
+  if (!sim.running) updateAmbientNoise(dt);
+  updateSoldiers(dt);
+
+  const isPersonMode = sim.trigger === 'intruder' || sim.trigger === 'friendly';
   const color = (sim.running && NEON[sim.trigger]) ? NEON[sim.trigger] : '#1e4a7a';
-  // Active sensors respond to the seismic source (intruder in human mode)
-  const seismicPos = (sim.running && sim.trigger === 'human' && sim.intruder) ? sim.intruder : sim.target;
-  const activeSet = sim.running ? nearestSensors(seismicPos.gx, seismicPos.gy, 8) : new Set();
+  // Active sensors respond to the seismic source
+  const seismicPos = (sim.running && isPersonMode && sim.intruder) ? sim.intruder : sim.target;
+  const activeSet  = sim.running ? nearestSensors(seismicPos.gx, seismicPos.gy, 8) : new Set();
+  drawGrid();
+  drawFieldSensors();
   drawSensors(activeSet, color);
+  drawSoldiers();
   if (sim.running) {
-    if (sim.trigger !== 'human') drawTrail(); // intruder has its own trail
+    if (!isPersonMode) drawTrail(); // intruder/friendly have their own trail
     drawEstimated();
     drawKalmanEstimate();
-    if (sim.trigger === 'human') {
+    if (isPersonMode) {
       updateHumanUnits(dt);
       drawIntruder();
-      drawInterceptors();
-      drawPursuer();
       drawTacticalHUD();
     } else {
       drawTarget();
@@ -1624,24 +1994,35 @@ window.startSimulation = function(trigger) {
   const angle = Math.random() * 6.283;
   sim.target.vx = Math.cos(angle); sim.target.vy = Math.sin(angle);
   sim.target.perturbTimer = 0;
-  // Human mode: spawn intruder + soldiers
-  if (trigger === 'human') {
+  // Spawn entity for person-mode triggers; reset soldiers for all triggers
+  sim.btStatus = null;
+  const btBar = el('bt-status-bar');
+  if (btBar) btBar.className = 'hidden';
+  if (trigger === 'intruder' || trigger === 'friendly') {
     initHumanUnits();
   } else {
     sim.intruder = null; sim.pursuer = null; sim.interceptors = []; sim.tacticalMsg = '';
   }
-  ['btn-human','btn-vehicle','btn-animal'].forEach(id => el(id).classList.remove('active-trigger'));
-  el(`btn-${trigger}`).classList.add('active-trigger');
-  const labels = { human:'Human Footsteps', vehicle:'Vehicle', animal:'Animal' };
-  setStatus(`Tracking ${labels[trigger]}…`);
-  appendLog(`▶ Started: ${labels[trigger]}`, 'log-success');
+  // Always (re)init soldiers at simulation start
+  initSoldiers();
+  ['btn-friendly','btn-intruder','btn-vehicle','btn-animal'].forEach(id => {
+    const b = el(id); if (b) b.classList.remove('active-trigger');
+  });
+  el(`btn-${trigger}`)?.classList.add('active-trigger');
+  const labels = { friendly:'Friendly Soldier', intruder:'Intruder', vehicle:'Vehicle', animal:'Animal' };
+  setStatus(`Tracking ${labels[trigger] || trigger}…`);
+  appendLog(`▶ Started: ${labels[trigger] || trigger}`, 'log-success');
+  // BT handshake simulation after 0.8 s detection delay
+  setTimeout(() => triggerBluetoothVerification(trigger), 800);
 };
 
 window.stopSimulation = function() {
   sim.running = false;
   setStatus('Paused — press a trigger to resume');
   appendLog('⏹ Paused', 'log-warn');
-  ['btn-human','btn-vehicle','btn-animal'].forEach(id => el(id).classList.remove('active-trigger'));
+  ['btn-friendly','btn-intruder','btn-vehicle','btn-animal'].forEach(id => {
+    const b = el(id); if (b) b.classList.remove('active-trigger');
+  });
 };
 
 window.resetSimulation = function() {
@@ -1660,11 +2041,20 @@ window.resetSimulation = function() {
     if(el(id)) el(id).textContent = el(id).textContent.replace(/=.*/,'= —').replace(/→.*/,'→ —');
   });
   setStatus('Idle — select a trigger to begin');
-  ['btn-human','btn-vehicle','btn-animal'].forEach(id => el(id).classList.remove('active-trigger'));
+  ['btn-friendly','btn-intruder','btn-vehicle','btn-animal'].forEach(id => {
+    const b = el(id); if (b) b.classList.remove('active-trigger');
+  });
+  // Reset BT bar
+  const btBar = el('bt-status-bar');
+  if (btBar) btBar.className = 'hidden';
+  sim.btStatus = null;
+  // Re-init soldiers on reset so they return to patrol positions
+  initSoldiers();
   el('event-log').innerHTML =
     '<span class="log-entry log-dim">↺ Canvas reset.</span><br/>' +
-    '<span class="log-entry log-info">▶ 64 perimeter sensors online.</span><br/>' +
+    '<span class="log-entry log-info">▶ 10 field sensors online. 5 soldiers on patrol.</span><br/>' +
     '<span class="log-entry log-dim">▶ Awaiting seismic trigger…</span><br/>';
+  if (el('tactical-log')) el('tactical-log').innerHTML = '';
 };
 
 window.onPyReady = function() {
@@ -1672,7 +2062,8 @@ window.onPyReady = function() {
   el('app-container').style.display   = 'flex';
   sim.lastRAF = performance.now();
   requestAnimationFrame(mainLoop);
-  appendLog('▶ Pyodide runtime ready. 64 sensors online.', 'log-success');
+  appendLog('▶ Pyodide ready. 10 field sensors + 5 soldiers online.', 'log-success');
+  initSoldiers(); // start soldier patrol immediately
 };
 
 // System clock
@@ -1730,7 +2121,7 @@ def generate_signal(trigger_type, src_gx, src_gy, noise, wave_speed, sample_rate
     dists = [math.sqrt((sx-src_gx)**2 + (sy-src_gy)**2) for sx, sy in SENSORS]
     d_min = min(dists)
     decay = math.exp(-d_min * 0.12)
-    if trigger_type == 'human':
+    if trigger_type in ('human', 'friendly', 'intruder'):
         # Footstep cadence ~1.8 Hz, seismic signature 1–2 Hz
         cadence = np.abs(np.sin(math.pi * 1.8 * t)) ** 3
         sig = decay * (cadence * np.sin(2*math.pi*1.5*t)*1.3 + 0.3*np.sin(2*math.pi*0.9*t))
@@ -1760,7 +2151,7 @@ def fft_analysis(sig, sample_rate, trigger_type):
     window = np.hanning(N)
     fft    = np.abs(np.fft.rfft(sig * window))
     freq   = np.fft.rfftfreq(N, d=1/sample_rate)
-    bands  = {'human': (0.5, 3.0), 'vehicle': (35, 80), 'animal': (3.0, 8.0)}
+    bands  = {'human': (0.5, 3.0), 'friendly': (0.5, 3.0), 'intruder': (0.5, 3.0), 'vehicle': (35, 80), 'animal': (3.0, 8.0)}
     pass_lo, pass_hi = bands.get(trigger_type, (1, 80))
     mask = freq <= 160
     freq = freq[mask]; fft = fft[mask]
