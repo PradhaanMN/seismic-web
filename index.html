@@ -26,6 +26,7 @@ packages = ["numpy", "matplotlib"]
 .section-label{
   font-family:'Orbitron',monospace;font-size:0.55rem;font-weight:600;
   letter-spacing:.14em;color:#506070;text-transform:uppercase;margin-bottom:5px;
+  display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;
 }
 /* 8-card metrics grid — force 4 columns */
 .metrics-grid{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:4px!important;}
@@ -262,7 +263,7 @@ packages = ["numpy", "matplotlib"]
     <span id="bt-icon">⚡</span>
     <span id="bt-label">—</span>
     <span id="bt-detail"></span>
-    <button onclick="el('bt-status-bar').className='hidden'" style="margin-left:auto;background:none;border:none;color:inherit;cursor:pointer;font-size:0.75rem">✕</button>
+    <button onclick="document.getElementById('bt-status-bar').className='hidden'" style="margin-left:auto;background:none;border:none;color:inherit;cursor:pointer;font-size:0.9rem;padding:0 4px;line-height:1">✕</button>
   </div>
 
 
@@ -730,8 +731,8 @@ function activateTacticalResponse() {
   });
 
   // Post directions to panel
-  el('tdir-status').textContent = '— engaged';
   el('tdir-status').style.color = '#ff4466';
+  el('tdir-status').textContent = '\u26a0 THREAT';
   generateTacticalDirections();
 }
 
@@ -754,8 +755,8 @@ function triggerBluetoothVerification(trigger) {
     appendLog('\u2713 BT HANDSHAKE OK \u2014 FRIENDLY FORCE \u2014 no response triggered', 'log-success');
     // Ensure all soldiers stay / return to patrol
     sim.soldiers.forEach(s => { s.state = 'patrol'; });
-    el('tdir-status').textContent = '\u2014 friendly \u2014 no action';
     el('tdir-status').style.color = '#00ffaa';
+    el('tdir-status').textContent = '\u2713 FRIENDLY';
     el('tactical-log').innerHTML = '<span class="log-entry log-dim">\u2713 Friendly ID confirmed \u2014 standing down.</span>';
     setTimeout(() => { if (sim.btStatus === 'friendly') bar.className = 'hidden'; }, 5000);
   } else {
