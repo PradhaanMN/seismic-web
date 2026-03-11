@@ -192,7 +192,8 @@ packages = ["numpy", "matplotlib"]
           <div class="section-label">⚡ TACTICAL DIRECTIONS <span id="tdir-status" style="color:#3a5070;font-size:0.55rem">— idle</span></div>
           <div id="tactical-log" class="tactical-log">
             <span class="log-entry log-dim">▶ Awaiting threat detection…</span>
-      </div>
+          </div>
+        </div>
 
     </div><!-- /#control-panel -->
 
@@ -1514,11 +1515,11 @@ function renderWaveformTo(canvas) {
   const PW = W - ML; const PH = H - MB;
   const midY = ML + 0; // N/A, plot starts at ML
 
-  if (!sim.running) {
+  if (!sim.running && sim.wfBuf.every(v => v === 0)) {
     ctx.font = `${Math.round(9*SF)}px "Share Tech Mono"`; ctx.fillStyle = '#3a6080';
     ctx.textAlign = 'center'; ctx.fillText('— awaiting trigger —', W/2, H/2); ctx.textAlign = 'left'; return;
   }
-  const color = NEON[sim.trigger] || NEON.cyan;
+  const color = sim.running ? (NEON[sim.trigger] || NEON.cyan) : '#2a5070';
 
   // Plot area outline
   ctx.strokeStyle = 'rgba(0,180,220,0.1)'; ctx.lineWidth = 0.5;
